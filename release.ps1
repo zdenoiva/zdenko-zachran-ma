@@ -85,7 +85,7 @@ try {
         } else {
             Write-Host "Vytvaram release $tag..." -ForegroundColor Cyan
             & $gh.Source release create $tag $exe $setup `
-                --title "Zdenko, zachran ma! $version" `
+                --title "Zdenko, zachráň ma! $version" `
                 --notes-file $notesFile
         }
         if ($LASTEXITCODE -ne 0) { throw "gh release zlyhal (exit $LASTEXITCODE)" }
