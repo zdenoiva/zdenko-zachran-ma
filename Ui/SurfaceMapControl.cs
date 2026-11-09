@@ -1,100 +1,87 @@
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
 using NtfsRescue.Repair;
 
 namespace NtfsRescue.Ui;
 
+/// <summary>Mapa povrchu disku: jeden štvorec = jeden väčší blok disku (podobne ako HD Tune).</summary>
 public sealed class SurfaceMapControl : Control
 {
-    private Bitmap? _bitmap;
-    private int _columns = 256;
-    private int _totalBlocks;
+    public static readonly Color Ok = Color.FromArgb(36, 173, 113);
+    public static readonly Color Medium = Color.FromArgb(128, 198, 92);
+    public static readonly Color Slow = Color.FromArgb(235, 184, 46);
+    public static readonly Color VerySlow = Color.FromArgb(240, 136, 36);
+    public static readonly Color Bad = Color.FromArgb(214, 45, 45);
+    public static readonly Color Unknown = Theme.SurfaceAlt;
+
+    private static readonly Brush[] Brushes =
+    {
+        new SolidBrush(Unknown),
+        new SolidBrush(Ok),
+        new SolidBrush(Medium),
+        new SolidBrush(Slow),
+        new SolidBrush(VerySlow),
+        new SolidBrush(Bad)
+    };
+
+    private int[]? _cells;
 
     public SurfaceMapControl()
     {
         DoubleBuffered = true;
-        BackColor = Theme.Surface;
-        MinimumSize = new Size(200, 120);
+        BackColor = Unknown;
+        MinimumSize = new Size(200, 140);
+        ResizeRedraw = true;
     }
 
-    public int TotalBlocks => _totalBlocks;
-
-    public void Reset(int totalBlocks)
+    public static Color ColorFor(int state) => state switch
     {
-        _totalBlocks = Math.Max(0, totalBlocks);
-        _columns = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(_totalBlocks)));
-        _bitmap?.Dispose();
-        _bitmap = null;
-        if (_totalBlocks > 0)
-        {
-            int rows = Math.Max(1, (_totalBlocks + _columns - 1) / _columns);
-            _bitmap = new Bitmap(_columns, rows, PixelFormat.Format32bppArgb);
-            using var g = Graphics.FromImage(_bitmap);
-            g.Clear(Color.FromArgb(232, 237, 243));
-        }
+        1 => Ok,
+        2 => Medium,
+        3 => Slow,
+        4 => VerySlow,
+        5 => Bad,
+        _ => Unknown
+    };
+
+    /// <summary>Nastaví bunky mapy (0 = ešte neskontrolované).</summary>
+    public void SetCells(int[]? cells)
+    {
+        _cells = cells;
         Invalidate();
-    }
-
-    public void SetBlock(int index, SurfaceBlock block)
-    {
-        if (_bitmap is null || index < 0 || index >= _totalBlocks) return;
-        int x = index % _columns;
-        int y = index / _columns;
-        _bitmap.SetPixel(x, y, ColorFor(block));
-    }
-
-    public void SetBlocks(IReadOnlyList<SurfaceBlock> blocks)
-    {
-        if (_bitmap is null) return;
-        for (int i = 0; i < blocks.Count && i < _totalBlocks; i++)
-            SetBlock(i, blocks[i]);
-        Invalidate();
-    }
-
-    private static Color ColorFor(SurfaceBlock block)
-    {
-        if (block.Bad) return Color.FromArgb(205, 35, 35);
-        if (block.Ms >= SurfaceScanner.VerySlowMs) return Color.FromArgb(242, 130, 28);
-        if (block.Ms >= SurfaceScanner.SlowMs) return Color.FromArgb(226, 187, 42);
-        if (block.Ms >= 50) return Color.FromArgb(122, 190, 72);
-        return Color.FromArgb(26, 166, 108);
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        base.OnPaint(e);
-        if (_bitmap is null)
+        var g = e.Graphics;
+        g.Clear(BackColor);
+
+        var cells = _cells;
+        if (cells is null || cells.Length == 0)
         {
             using var brush = new SolidBrush(Theme.Muted);
-            e.Graphics.DrawString("Zatiaľ bez kontroly.", Font, brush, new PointF(12, 12));
+            g.DrawString("Zatiaľ bez kontroly.", Font, brush, new PointF(14, 12));
             return;
         }
 
         var area = ClientRectangle;
-        area.Inflate(-1, -1);
-        if (area.Width <= 0 || area.Height <= 0) return;
+        if (area.Width < 8 || area.Height < 8) return;
 
-        float scaleX = (float)area.Width / _bitmap.Width;
-        float scaleY = (float)area.Height / _bitmap.Height;
-        float scale = Math.Min(scaleX, scaleY);
-        int width = Math.Max(1, (int)(_bitmap.Width * scale));
-        int height = Math.Max(1, (int)(_bitmap.Height * scale));
-        int x = area.X + (area.Width - width) / 2;
-        int y = area.Y + (area.Height - height) / 2;
+        double ratio = (double)area.Width / area.Height;
+        int columns = Math.Max(1, (int)Math.Round(Math.Sqrt(cells.Length * ratio)));
+        columns = Math.Min(columns, cells.Length);
+        int rows = (int)Math.Ceiling((double)cells.Length / columns);
 
-        var old = e.Graphics.InterpolationMode;
-        e.Graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
-        e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
-        e.Graphics.DrawImage(_bitmap, new Rectangle(x, y, width, height));
-        e.Graphics.InterpolationMode = old;
-
-        using var border = new Pen(Theme.Border);
-        e.Graphics.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing) _bitmap?.Dispose();
-        base.Dispose(disposing);
+        for (int i = 0; i < cells.Length; i++)
+        {
+            int state = cells[i];
+            if (state <= 0) continue;
+            int column = i % columns;
+            int row = i / columns;
+            int x0 = area.X + (int)((long)column * area.Width / columns);
+            int x1 = area.X + (int)((long)(column + 1) * area.Width / columns);
+            int y0 = area.Y + (int)((long)row * area.Height / rows);
+            int y1 = area.Y + (int)((long)(row + 1) * area.Height / rows);
+            g.FillRectangle(Brushes[Math.Clamp(state, 0, 5)], x0, y0,
+                Math.Max(1, x1 - x0), Math.Max(1, y1 - y0));
+        }
     }
 }

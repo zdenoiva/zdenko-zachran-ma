@@ -1,5 +1,22 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.14] - 2026-11-09
+
+- **Mapa povrchu ako HD Tune**:
+  - jeden štvorec = väčší blok disku (pri 465 GB ≈ 236 MB), takže mapa má
+    približne 2 000 prehľadných blokov namiesto 119 000 miniatúrnych bodov
+  - žiadne čierne rámiky medzi blokmi, mapa vypĺňa celú plochu
+  - svetlé pozadie podľa našej témy namiesto šedej mriežky
+  - rovnaké farby v mape aj v legende
+- **Rozsah kontroly Od bloku / Do bloku**:
+  - kontrola sa dá spustiť od ľubovoľného bloku, napr. pokračovať po nedobehnutej kontrole
+  - nová kontrola od bloku 0 mapu vymaže, pokračovanie od iného bloku ju doplní
+  - po zrušení kontroly zostanú namerané bloky v mape
+- **Výraznejšie štatistiky**: poškodené bloky v % a počte, rýchlosť, pozícia,
+  uplynulý čas, ETA a veľkosť jedného štvorca mapy
+- **Tlačidlo Opraviť** má pevné miesto vpravo a už neodskakuje naľavo
+- Oprava vypnutého tlačidla má sivý vzhľad namiesto červenej.
+
 ## [2.13] - 2026-11-09
 
 - **Aktualizácia nainštalovanej verzie**: inštalátor sa už nespúšťa počas behu programu.

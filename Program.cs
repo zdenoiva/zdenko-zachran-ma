@@ -457,9 +457,9 @@ internal static class Program
             var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-surfacescan.log");
             try
             {
-                var numberArg = args.SkipWhile(a => !a.Equals("--surfacescan", StringComparison.OrdinalIgnoreCase))
-                    .Skip(1).FirstOrDefault();
-                if (!int.TryParse(numberArg, out int diskNumber))
+                var rest = args.SkipWhile(a => !a.Equals("--surfacescan", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).ToList();
+                if (rest.Count < 1 || !int.TryParse(rest[0], out int diskNumber))
                 {
                     File.WriteAllText(logPath, "SURFACESCAN FAIL: chýba číslo disku");
                     return 3;
@@ -467,9 +467,14 @@ internal static class Program
                 var disks = DiskInfoCatalog.LoadAsync(CancellationToken.None).GetAwaiter().GetResult();
                 var disk = disks.FirstOrDefault(d => d.Number == diskNumber);
                 if (disk is null) { File.WriteAllText(logPath, "SURFACESCAN FAIL: disk sa nenašiel"); return 4; }
+                int fullBlocks = SurfaceScanner.BlockCount(disk.Size);
+                int firstBlock = rest.Count > 1 && int.TryParse(rest[1], out int f) ? f : 0;
+                int lastBlock = rest.Count > 2 && int.TryParse(rest[2], out int l) ? l : fullBlocks - 1;
                 var lines = new List<string>();
-                var result = SurfaceScanner.Scan(disk, null, lines.Add, CancellationToken.None);
-                var report = Path.Combine(Path.GetTempPath(), $"povrch-disk-{diskNumber}.csv");
+                var result = SurfaceScanner.Scan(disk, firstBlock, lastBlock,
+                    null, lines.Add, CancellationToken.None);
+                var report = Path.Combine(Path.GetTempPath(),
+                    $"povrch-disk-{diskNumber}-{result.FirstBlock}-{result.LastBlock}.csv");
                 result.SaveReport(report);
                 lines.Add($"Success=True Report={report}");
                 File.WriteAllLines(logPath, lines);

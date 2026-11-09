@@ -1,5 +1,5 @@
 # Vytvori instalator Zdenko, zachráň ma! (Inno Setup).
-# Vysledok: .\dist\ZachranaDisku-Setup-2.13.exe
+# Vysledok: .\dist\ZachranaDisku-Setup-2.14.exe
 param(
     [switch]$SkipBuild
 )
@@ -30,7 +30,7 @@ try {
     & $iscc (Join-Path $PSScriptRoot "installer.iss")
     if ($LASTEXITCODE -ne 0) { throw "ISCC zlyhal (exit $LASTEXITCODE)" }
 
-    $setup = Join-Path $PSScriptRoot "dist\ZachranaDisku-Setup-2.13.exe"
+    $setup = Join-Path $PSScriptRoot "dist\ZachranaDisku-Setup-2.14.exe"
     if (-not (Test-Path $setup)) { throw "Instalator sa nevytvoril" }
     Write-Host ""
     Write-Host "Hotovo: $setup" -ForegroundColor Green
@@ -39,6 +39,7 @@ try {
 finally {
     Pop-Location
 }
+
 
 
 
