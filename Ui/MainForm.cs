@@ -25,6 +25,7 @@ public sealed class MainForm : Form
     private readonly AboutPanel _about = new();
     private readonly BootPanel _boot = new();
     private readonly DiskPanel _disk = new();
+    private readonly SurfacePanel _surface = new();
     private SplitContainer? _diagSplit;
 
     private readonly Button _btnDiagnose = new();
@@ -55,6 +56,8 @@ public sealed class MainForm : Form
     private readonly Label _updatePercent = new();
     private UpdateInfo? _updateInfo;
     private bool _updating;
+    private TableLayoutPanel? _rootLayout;
+    private RowStyle? _updateRowStyle;
 
     private readonly List<Control> _busyControls = new();
 
@@ -90,7 +93,11 @@ public sealed class MainForm : Form
             _refreshButton.Enabled = !busy;
         };
         _wizard.ActionSelected += async action => await OnWizardActionAsync(action);
-        _disk.DiskChanged += async () => await LoadPartitionsAsync();
+        _disk.DiskChanged += async () =>
+        {
+            await LoadPartitionsAsync();
+            await _surface.ReloadAsync();
+        };
 
         BuildUi();
         if (!_smoke)
@@ -116,7 +123,18 @@ public sealed class MainForm : Form
     {
         _updateLabel.Text = $"Dostupná novšia verzia {version}.";
         _updateLink.Tag = UpdateService.PageUrl;
-        _updateBanner.Visible = true;
+        SetUpdateBannerVisible(true);
+    }
+
+    private void SetUpdateBannerVisible(bool visible)
+    {
+        _updateBanner.Visible = visible;
+        if (_updateRowStyle is not null)
+        {
+            _updateRowStyle.SizeType = SizeType.Absolute;
+            _updateRowStyle.Height = visible ? 52 : 0;
+        }
+        _rootLayout?.PerformLayout();
     }
 
     private void BuildUi()
@@ -127,9 +145,11 @@ public sealed class MainForm : Form
             ColumnCount = 1,
             RowCount = 4
         };
+        _rootLayout = root;
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _updateRowStyle = new RowStyle(SizeType.Absolute, 0);
+        root.RowStyles.Add(_updateRowStyle);
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -372,7 +392,7 @@ public sealed class MainForm : Form
         };
         close.FlatAppearance.BorderSize = 0;
         close.FlatAppearance.MouseOverBackColor = Color.FromArgb(250, 232, 190);
-        close.Click += (_, _) => _updateBanner.Visible = false;
+        close.Click += (_, _) => SetUpdateBannerVisible(false);
         grid.Controls.Add(close, 5, 0);
 
         _updateBanner.Controls.Add(grid);
@@ -396,7 +416,7 @@ public sealed class MainForm : Form
             _updateLink.Text = "Aktualizovať";
             _updateProgress.Visible = false;
             _updatePercent.Visible = false;
-            _updateBanner.Visible = true;
+            SetUpdateBannerVisible(true);
             Log.Info($"Dostupná novšia verzia {info.Version}; aktuálna je {AppInfo.VersionDisplay}.");
         }
         catch (Exception ex)
@@ -478,7 +498,7 @@ public sealed class MainForm : Form
         _tabs.Padding = new Point(14, 6);
         _tabs.Appearance = TabAppearance.FlatButtons;
         _tabs.SizeMode = TabSizeMode.Fixed;
-        _tabs.ItemSize = new Size(136, 34);
+        _tabs.ItemSize = new Size(126, 34);
         _tabs.Font = new Font("Segoe UI Semibold", 9.5f);
         _tabs.BackColor = Theme.Background;
 
@@ -486,6 +506,7 @@ public sealed class MainForm : Form
         _tabs.TabPages.Add(BuildDiagnosticsTab());
         _tabs.TabPages.Add(BuildBootTab());
         _tabs.TabPages.Add(BuildDiskTab());
+        _tabs.TabPages.Add(BuildSurfaceTab());
         _tabs.TabPages.Add(BuildRepairTab());
 
         var recoveryTab = new TabPage("Záchrana súborov")
@@ -504,6 +525,8 @@ public sealed class MainForm : Form
                 _ = _boot.EnsureLoadedAsync();
             if (_tabs.SelectedTab?.Controls.Contains(_disk) == true)
                 _ = _disk.EnsureLoadedAsync();
+            if (_tabs.SelectedTab?.Controls.Contains(_surface) == true)
+                _ = _surface.EnsureLoadedAsync();
         };
         return _tabs;
     }
@@ -538,6 +561,17 @@ public sealed class MainForm : Form
             Padding = new Padding(0)
         };
         page.Controls.Add(_disk);
+        return page;
+    }
+
+    private TabPage BuildSurfaceTab()
+    {
+        var page = new TabPage("Povrch")
+        {
+            BackColor = Theme.Background,
+            Padding = new Padding(0)
+        };
+        page.Controls.Add(_surface);
         return page;
     }
 

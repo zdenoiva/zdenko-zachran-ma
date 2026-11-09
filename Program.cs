@@ -184,9 +184,12 @@ internal static class Program
                     form.SelectTabForTest(2);
                 if (args.Any(a => a.Equals("--disktab", StringComparison.OrdinalIgnoreCase)))
                     form.SelectTabForTest(3);
+                if (args.Any(a => a.Equals("--surfacetab", StringComparison.OrdinalIgnoreCase)))
+                    form.SelectTabForTest(4);
                 if (args.Any(a => a.Equals("--updatebanner", StringComparison.OrdinalIgnoreCase)))
                 {
-                    if (loadDisks)
+                    if (loadDisks &&
+                        !args.Any(a => a.Equals("--bannerearly", StringComparison.OrdinalIgnoreCase)))
                     {
                         for (int i = 0; i < 90; i++)
                         {
@@ -198,6 +201,7 @@ internal static class Program
                 }
                 var loops = args.Any(a => a.Equals("--boottab", StringComparison.OrdinalIgnoreCase)) ? 140
                     : args.Any(a => a.Equals("--disktab", StringComparison.OrdinalIgnoreCase)) ? 140
+                    : args.Any(a => a.Equals("--surfacetab", StringComparison.OrdinalIgnoreCase)) ? 140
                     : loadDisks ? 200 : 40;
                 for (int i = 0; i < loops; i++)
                 {
@@ -379,6 +383,67 @@ internal static class Program
             catch (Exception ex)
             {
                 File.WriteAllText(logPath, "BOOTRECOVERY FAIL: " + ex);
+                return 1;
+            }
+        }
+
+        if (args.Any(a => a.Equals("--surfacescan", StringComparison.OrdinalIgnoreCase)))
+        {
+            var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-surfacescan.log");
+            try
+            {
+                var numberArg = args.SkipWhile(a => !a.Equals("--surfacescan", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                if (!int.TryParse(numberArg, out int diskNumber))
+                {
+                    File.WriteAllText(logPath, "SURFACESCAN FAIL: chýba číslo disku");
+                    return 3;
+                }
+                var disks = DiskInfoCatalog.LoadAsync(CancellationToken.None).GetAwaiter().GetResult();
+                var disk = disks.FirstOrDefault(d => d.Number == diskNumber);
+                if (disk is null) { File.WriteAllText(logPath, "SURFACESCAN FAIL: disk sa nenašiel"); return 4; }
+                var lines = new List<string>();
+                var result = SurfaceScanner.Scan(disk, null, lines.Add, CancellationToken.None);
+                var report = Path.Combine(Path.GetTempPath(), $"povrch-disk-{diskNumber}.csv");
+                result.SaveReport(report);
+                lines.Add($"Success=True Report={report}");
+                File.WriteAllLines(logPath, lines);
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(logPath, "SURFACESCAN FAIL: " + ex);
+                return 1;
+            }
+        }
+
+        if (args.Any(a => a.Equals("--surfacerepair", StringComparison.OrdinalIgnoreCase)))
+        {
+            var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-surfacerepair.log");
+            try
+            {
+                var rest = args.SkipWhile(a => !a.Equals("--surfacerepair", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).ToList();
+                if (rest.Count < 2 || !int.TryParse(rest[0], out int diskNumber) ||
+                    !long.TryParse(rest[1], out long offset))
+                {
+                    File.WriteAllText(logPath, "SURFACEREPAIR FAIL: chýba disk/offset");
+                    return 3;
+                }
+                var disks = DiskInfoCatalog.LoadAsync(CancellationToken.None).GetAwaiter().GetResult();
+                var disk = disks.FirstOrDefault(d => d.Number == diskNumber);
+                if (disk is null) { File.WriteAllText(logPath, "SURFACEREPAIR FAIL: disk sa nenašiel"); return 4; }
+                var lines = new List<string>();
+                var result = SurfaceRepairService.RepairAsync(disk, new[] { offset }, null,
+                    lines.Add, CancellationToken.None).GetAwaiter().GetResult();
+                lines.Add($"Repaired={result.Repaired} Failed={result.Failed} Backup={result.BackupPath}");
+                lines.Add(result.Summary);
+                File.WriteAllLines(logPath, lines);
+                return result.Failed == 0 ? 0 : 1;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(logPath, "SURFACEREPAIR FAIL: " + ex);
                 return 1;
             }
         }

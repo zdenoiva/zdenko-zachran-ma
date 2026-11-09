@@ -173,7 +173,7 @@ public sealed class DiskPanel : UserControl
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 230));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
         _rdoQuick.Text = "Odstrániť partície (rýchlo)";
@@ -200,14 +200,6 @@ public sealed class DiskPanel : UserControl
         layout.Controls.Add(_chkCreate, 0, 1);
         layout.SetColumnSpan(_chkCreate, 2);
 
-        layout.Controls.Add(KeyLabel("Systém súborov:"), 2, 1);
-        _fsCombo.DropDownStyle = ComboBoxStyle.DropDownList;
-        _fsCombo.Items.AddRange(new object[] { "NTFS", "FAT32" });
-        _fsCombo.SelectedIndex = 0;
-        _fsCombo.Width = 130;
-        _fsCombo.Margin = new Padding(0, 6, 0, 0);
-        layout.Controls.Add(_fsCombo, 3, 1);
-
         layout.Controls.Add(KeyLabel("Štýl disku:"), 0, 2);
         _styleCombo.DropDownStyle = ComboBoxStyle.DropDownList;
         _styleCombo.Items.AddRange(new object[] { "GPT", "MBR" });
@@ -216,11 +208,13 @@ public sealed class DiskPanel : UserControl
         _styleCombo.Margin = new Padding(0, 6, 0, 0);
         layout.Controls.Add(_styleCombo, 1, 2);
 
-        layout.Controls.Add(KeyLabel("Písmeno:"), 2, 2);
-        _letterCombo.DropDownStyle = ComboBoxStyle.DropDownList;
-        _letterCombo.Width = 130;
-        _letterCombo.Margin = new Padding(0, 6, 0, 0);
-        layout.Controls.Add(_letterCombo, 3, 2);
+        layout.Controls.Add(KeyLabel("Systém súborov:"), 2, 2);
+        _fsCombo.DropDownStyle = ComboBoxStyle.DropDownList;
+        _fsCombo.Items.AddRange(new object[] { "NTFS", "FAT32" });
+        _fsCombo.SelectedIndex = 0;
+        _fsCombo.Width = 130;
+        _fsCombo.Margin = new Padding(0, 6, 0, 0);
+        layout.Controls.Add(_fsCombo, 3, 2);
 
         layout.Controls.Add(KeyLabel("Názov partície:"), 0, 3);
         _labelBox.Text = "DATA";
@@ -228,6 +222,12 @@ public sealed class DiskPanel : UserControl
         _labelBox.MaxLength = 32;
         _labelBox.Margin = new Padding(0, 6, 0, 0);
         layout.Controls.Add(_labelBox, 1, 3);
+
+        layout.Controls.Add(KeyLabel("Písmeno:"), 2, 3);
+        _letterCombo.DropDownStyle = ComboBoxStyle.DropDownList;
+        _letterCombo.Width = 130;
+        _letterCombo.Margin = new Padding(0, 6, 0, 0);
+        layout.Controls.Add(_letterCombo, 3, 3);
 
         card.Controls.Add(layout);
         return card;

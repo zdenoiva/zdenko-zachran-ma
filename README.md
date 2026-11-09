@@ -1,6 +1,6 @@
 # Zdenko, zachráň ma!
 
-**Verzia 2.11** · © 2026 **Zdenko Ivančík**
+**Verzia 2.12** · © 2026 **Zdenko Ivančík**
 
 Nekomerčné použitie je povolené. **Komerčné použitie je možné len s výslovným
 súhlasom autora.**
@@ -12,7 +12,7 @@ potvrdenia.
 - GitHub: <https://github.com/zdenoiva/zdenko-zachran-ma>
 - Releases: <https://github.com/zdenoiva/zdenko-zachran-ma/releases>
 - Stránka na stiahnutie: <https://zdenoiva.github.io/zdenko-zachran-ma/>
-- Aktuálna verzia: **2.11**
+- Aktuálna verzia: **2.12**
 
 ## Inštalácia alebo prenosné spustenie
 
@@ -20,7 +20,7 @@ potvrdenia.
   - **jeden súbor**, self-contained, nepotrebuje .NET ani inštaláciu
   - skopírujte ho na iný počítač a spustite
   - všetky potrebné natívne knižnice sa rozbalia dočasne automaticky
-- **Inštalátor:** `dist\ZachranaDisku-Setup-2.11.exe`
+- **Inštalátor:** `dist\ZachranaDisku-Setup-2.12.exe`
   - po spustení ponúkne dve možnosti:
     - **Nainštalovať do počítača** (Program Files, Štart, odinštalovanie cez
       Nastavenia → Aplikácie)
@@ -145,6 +145,23 @@ potvrdenia.
 - pred vymazaním sa vyžaduje potvrdenie textom a zaškrtnutie súhlasu
 - pri úplnom prepísaní je viditeľný priebeh a možnosť zrušiť
 
+### Povrch disku (Povrch)
+- samostatná záložka **Povrch**
+- kompletné čítanie celého disku po blokoch 4 MB
+- vizuálna mapa rýchlosti:
+  - zelená = OK
+  - žltá/oranžová = pomalé bloky
+  - červená = chybný sektor
+- počet vadných sektorov, pomalých blokov, rýchlosť a ETA
+- možnosť zrušiť kontrolu
+- **Uložiť report** do CSV
+- **oprava vadných sektorov**:
+  - pokus o opakované prečítanie
+  - čitateľné dáta sa uložia do záložného súboru
+  - sektor sa zapíše späť alebo nulami, aby sa disk pokúsil o preradenie
+  - výsledok sa overí čítaním
+  - pri SSD nemusí zápis vynútiť fyzické preradenie; použite secure erase
+
 ### Protokol a zálohy
 - všetky operácie sa logujú do `%LOCALAPPDATA%\ZdenkoZachranMa\logs`
 - zálohy metadát: `Dokumenty\ZdenkoZachranMa\zalohy`
@@ -197,7 +214,7 @@ winget install JRSoftware.InnoSetup
 .\make-installer.ps1
 ```
 
-Výsledok: `dist\ZachranaDisku-Setup-2.11.exe`.
+Výsledok: `dist\ZachranaDisku-Setup-2.12.exe`.
 
 ## Vydanie novej verzie
 
@@ -220,7 +237,7 @@ Potom commitnite a pushnite `latest.json` a `CHANGELOG.md`:
 
 ```powershell
 git add latest.json CHANGELOG.md
-git commit -m "Release v2.11"
+git commit -m "Release v2.12"
 git push
 ```
 
@@ -264,6 +281,7 @@ Licenčné texty tretích strán: `THIRD_PARTY_NOTICES.md`.
 Program pracuje s diskovými zariadeniami a pri oprave zapisuje do metadát.
 Používate ho na vlastné riziko. Pred opravou si vždy skopírujte dôležité dáta.
 Záchrana má zmysel len dovtedy, kým sa prepísané dáta neprepíšu inými.
+
 
 
 

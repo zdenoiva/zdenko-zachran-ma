@@ -1,5 +1,20 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.12] - 2026-11-09
+
+- Zarovnané pole **Systém súborov** a **Písmeno** v záložke Disk.
+- Lišta aktualizácie má pevnú výšku riadku; po načítaní disku sa už neskryje.
+- Nová záložka **Povrch**:
+  - čítanie celého disku po 4 MB blokoch
+  - vizuálna mapa OK / pomalé / chybné bloky
+  - počet vadných sektorov, rýchlosť, ETA a možnosť zrušiť
+  - CSV report
+- Oprava vadných sektorov:
+  - opakované čítanie a záloha čitateľných dát
+  - zápis späť alebo nuly na vynútenie preradenia
+  - overenie po zápise
+- Testované na 512 MB a 2 GB VHDX; scan, mapa, report a oprava sektora prešli.
+
 ## [2.11] - 2026-11-09
 
 - Nová záložka **Disk** na vymazanie celého disku.

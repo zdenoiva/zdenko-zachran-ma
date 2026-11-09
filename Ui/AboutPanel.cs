@@ -49,7 +49,9 @@ public sealed class AboutPanel : UserControl
             "9. Záložka Boot vie opraviť štart Windows cez bcdboot/bootsect, pripraviť BCD, " +
             "pridať Windows RE/OEM recovery a voliteľne previesť MBR na GPT cez mbr2gpt.\n" +
             "10. Záložka Disk vie odstrániť partície alebo celý disk prepísať nulami " +
-            "a vytvoriť novú partíciu NTFS/FAT32."));
+            "a vytvoriť novú partíciu NTFS/FAT32.\n" +
+            "11. Záložka Povrch prečíta celý disk, zobrazí mapu rýchlosti a vadné " +
+            "sektory, uloží report a vie sa pokúsiť o zápis/opravu vadných sektorov."));
 
         layout.Controls.Add(Section("Použité nástroje a autori",
             "• Windows chkdsk — oprava NTFS/FAT32 (Microsoft)\n" +
