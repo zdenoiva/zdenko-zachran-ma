@@ -296,6 +296,27 @@ internal static class SelfTest
             "S.M.A.R.T. alert odporúča výmenu");
         Check(bad.DisplayText.Count(c => c == ';') >= 4,
             "S.M.A.R.T. alert vypíše viac dôvodov naraz");
+
+        var ssd = new SmartInfo
+        {
+            Available = true,
+            Nvme = true,
+            Health = "Healthy",
+            Status = "OK",
+            Wear = 3,
+            Temperature = 58,
+            PowerOnHours = 9_039,
+            AvailableSpare = 100,
+            SpareThreshold = 10,
+            MediaErrors = 0
+        };
+        SmartInfoService.ComposeDisplay(ssd);
+        Check(ssd.HealthScore == 97, "NVMe zdravie = 100 - opotrebenie");
+        Check(ssd.RemainingLife == 97, "NVMe zostávajúca životnosť");
+        Check(ssd.Rating == SmartRating.Good, "NVMe stav je dobrý");
+        Check(!ssd.HasAlert, "NVMe bez chýb nemá alert");
+        Check(ssd.DisplayText.Contains("97 %", StringComparison.Ordinal),
+            "NVMe text obsahuje percento zdravia");
     }
 
     private static void TestSystemFileDetection()

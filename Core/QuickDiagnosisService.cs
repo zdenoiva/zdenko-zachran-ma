@@ -35,6 +35,7 @@ public sealed class QuickDiagnosisReport
     public string SmartText = "";
     public bool SmartAlert;
     public bool SmartAvailable;
+    public SmartInfo? Smart;
     public readonly List<RecommendedAction> Actions = new();
     public bool HasLetter;
     public bool BootFromBackup;
@@ -69,6 +70,7 @@ public static class QuickDiagnosisService
         else if (partition.DiskNumber >= 0)
         {
             var smart = SmartInfoService.Query(partition.DiskNumber, ct);
+            report.Smart = smart;
             report.SmartText = smart.DisplayText;
             report.SmartAlert = smart.HasAlert;
             report.SmartAvailable = smart.Available;

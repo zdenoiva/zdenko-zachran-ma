@@ -13,6 +13,7 @@ public sealed class WizardPanel : UserControl
     private readonly FlowLayoutPanel _actions = new();
     private readonly Label _lblHint = new();
     private readonly Panel _card = new();
+    private readonly SmartHealthControl _smartCard = new();
     private bool _busy;
 
     public event Action<RecommendedAction>? ActionSelected;
@@ -54,11 +55,12 @@ public sealed class WizardPanel : UserControl
         {
             Dock = DockStyle.Fill,
             AutoSize = true,
-            ColumnCount = 2,
+            ColumnCount = 3,
             RowCount = 2
         };
         cardLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58));
         cardLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        cardLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 330));
         cardLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         cardLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -100,6 +102,10 @@ public sealed class WizardPanel : UserControl
         cardLayout.SetRowSpan(_lblIcon, 2);
         cardLayout.Controls.Add(titleStack, 1, 0);
         cardLayout.Controls.Add(_lblSmart, 1, 1);
+        _smartCard.Margin = new Padding(16, 2, 0, 2);
+        _smartCard.Anchor = AnchorStyles.Top;
+        cardLayout.Controls.Add(_smartCard, 2, 0);
+        cardLayout.SetRowSpan(_smartCard, 2);
 
         _card.Controls.Add(cardLayout);
 
@@ -133,6 +139,7 @@ public sealed class WizardPanel : UserControl
         _lblSmart.Text = "";
         _lblSmart.Visible = false;
         _lblSmart.BackColor = Theme.Surface;
+        _smartCard.SetData(null);
         _card.BackColor = Theme.Surface;
         _actions.Controls.Clear();
     }
@@ -153,6 +160,8 @@ public sealed class WizardPanel : UserControl
         _lblSmart.Text = string.IsNullOrWhiteSpace(report.SmartText)
             ? "S.M.A.R.T: nedostupné"
             : report.SmartText;
+        _lblSmart.Visible = report.SmartAlert;
+        _smartCard.SetData(report.SmartAvailable ? report.Smart : null);
 
         if (!report.SmartAvailable)
         {

@@ -1,5 +1,27 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.15] - 2026-11-09
+
+- **Grafická karta stavu disku v Sprievodcovi** (vpravo od verdiktu, podobne ako
+  CrystalDiskInfo):
+  - kruhový ukazovateľ zdravia 0–100 % s hodnotením Výborný / Dobrý / Pozor / Kritický
+  - teplota, zostávajúca životnosť SSD, hodiny a dni v prevádzke
+  - presunuté, nestabilné a neopraviteľné sektory, chyby média a CRC
+  - pri NVMe zápis/čítanie v TB a náhradné bloky
+- **NVMe SMART/Health log page** cez Windows `DeviceIoControl`:
+  - opotrebenie v % (rovnaké ako CrystalDiskInfo), náhradné bloky a ich prah,
+    critical warning, media errors, unsafe shutdowns, dátové jednotky
+  - overené na NVMe HFS001TEJ9X125N: 97 % zdravie, 3 % opotrebenie, 58 °C,
+    9 039 h, zápis 49,4 TB, čítanie 96,8 TB
+- **ATA/SATA SMART**: načítanie všetkých atribútov a presnejšie hodnotenie
+  (5, 9, 12, 174, 187, 190/194, 197, 198, 199, 231/233, 241/242)
+- Oprava priradenia SMART atribútov: atribúty sa už nepriradia inému disku,
+  keď sa model nezhoduje.
+- Karta zdravia zobrazuje aj dôvody alertu; pri čistom disku sa zbytočný
+  textový S.M.A.R.T. riadok skryje.
+- Health score sa počíta z opotrebenia, náhradných blokov, sektorov, médií,
+  teploty a varovaní; pri vážnych chybách odporúča výmenu disku.
+
 ## [2.14] - 2026-11-09
 
 - **Mapa povrchu ako HD Tune**:

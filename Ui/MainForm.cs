@@ -121,6 +121,21 @@ public sealed class MainForm : Form
             _tabs.SelectedIndex = index;
     }
 
+    /// <summary>Testovací vstup: vyberie partíciu podľa písmena a spustí diagnostiku.</summary>
+    public bool SelectVolumeForTest(char letter)
+    {
+        for (int i = 0; i < _volumeCombo.Items.Count; i++)
+        {
+            if (_volumeCombo.Items[i] is VolumeEntry entry &&
+                char.ToUpperInvariant(entry.Letter) == char.ToUpperInvariant(letter))
+            {
+                _volumeCombo.SelectedIndex = i;
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void ShowUpdateBannerForTest(string version)
     {
         _updateLabel.Text = $"Dostupná novšia verzia {version}.";

@@ -51,11 +51,14 @@ public sealed class AboutPanel : UserControl
             "10. Záložka Disk vie odstrániť partície alebo celý disk prepísať nulami " +
             "a vytvoriť novú partíciu NTFS/FAT32.\n" +
             "11. Záložka Povrch prečíta celý disk, zobrazí mapu rýchlosti a vadné " +
-            "sektory, uloží report a vie sa pokúsiť o zápis/opravu vadných sektorov."));
+            "sektory, uloží report a vie sa pokúsiť o zápis/opravu vadných sektorov.\n" +
+            "12. Sprievodca zobrazí grafickú kartu stavu disku: zdravie v %, teplotu, " +
+            "životnosť SSD, sektory a pri NVMe aj zápis/čítanie z NVMe SMART logu."));
 
         layout.Controls.Add(Section("Použité nástroje a autori",
             "• Windows chkdsk — oprava NTFS/FAT32 (Microsoft)\n" +
             "• PowerShell Storage reliability counters — S.M.A.R.T. (Microsoft)\n" +
+            "• Windows NVMe SMART/Health log page — DeviceIoControl (Microsoft)\n" +
             "• PowerShell Storage cmdlets — dočasné písmeno a stav volume (Microsoft)\n" +
             "• DISM a SFC — automatická obnova systémových nástrojov (Microsoft)\n" +
             "• bcdboot, bcdedit, bootsect, reagentc, mbr2gpt — oprava bootovania (Microsoft)\n" +

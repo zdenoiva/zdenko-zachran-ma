@@ -128,8 +128,20 @@ internal static class Program
                 var smart = SmartInfoService.Query(p.DiskNumber, CancellationToken.None);
                 File.WriteAllText(logPath,
                     $"SMART {letter}: {smart.DisplayText}\n" +
-                    $"Available={smart.Available} Alert={smart.HasAlert} Hours={smart.PowerOnHours} " +
-                    $"Temp={smart.Temperature} Wear={smart.Wear} Model={smart.Model}\n");
+                    $"Available={smart.Available} Nvme={smart.Nvme} Alert={smart.HasAlert} " +
+                    $"Hours={smart.PowerOnHours} Temp={smart.Temperature} Wear={smart.Wear} " +
+                    $"Model={smart.Model}\n" +
+                    $"Rating={smart.Rating} Score={smart.HealthScore} Life={smart.RemainingLife} " +
+                    $"Label={smart.HealthLabel}\n" +
+                    $"Critical={smart.CriticalWarning} Spare={smart.AvailableSpare} " +
+                    $"SpareThreshold={smart.SpareThreshold} Cycles={smart.PowerCycles} " +
+                    $"Unsafe={smart.UnsafeShutdowns} MediaErrors={smart.MediaErrors} " +
+                    $"LogEntries={smart.ErrorLogEntries}\n" +
+                    $"HostRead={smart.HostReadBytes} HostWrite={smart.HostWriteBytes} " +
+                    $"Realloc={smart.ReallocatedSectors} Pending={smart.PendingSectors} " +
+                    $"Uncorrectable={smart.UncorrectableSectors} Crc={smart.CrcErrors}\n" +
+                    "NvmeError=" + NvmeSmart.LastError + "\n" +
+                    "Attributes=" + string.Join(", ", smart.Attributes.Select(a => $"{a.Id}:{a.Name}={a.Raw}")));
                 return 0;
             }
             catch (Exception ex)
@@ -263,6 +275,22 @@ internal static class Program
                         }
                     }
                     form.ShowUpdateBannerForTest("9.9");
+                }
+                var wizardArg = args.SkipWhile(a => !a.Equals("--wizardletter", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(wizardArg) && char.IsLetter(wizardArg[0]))
+                {
+                    for (int i = 0; i < 120; i++)
+                    {
+                        Application.DoEvents();
+                        Thread.Sleep(50);
+                    }
+                    form.SelectVolumeForTest(char.ToUpperInvariant(wizardArg[0]));
+                    for (int i = 0; i < 240; i++)
+                    {
+                        Application.DoEvents();
+                        Thread.Sleep(50);
+                    }
                 }
                 var loops = args.Any(a => a.Equals("--boottab", StringComparison.OrdinalIgnoreCase)) ? 140
                     : args.Any(a => a.Equals("--disktab", StringComparison.OrdinalIgnoreCase)) ? 140
