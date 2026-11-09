@@ -56,106 +56,138 @@ public sealed class RecoveryPanel : UserControl
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-        var toolbar = new FlowLayoutPanel
+        var toolbar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             AutoSize = true,
-            WrapContents = true,
+            ColumnCount = 1,
+            RowCount = 3,
             Padding = new Padding(12, 10, 12, 6),
             BackColor = Theme.Background
+        };
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        toolbar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        toolbar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        toolbar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var sourceRow = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            WrapContents = false,
+            BackColor = Theme.Background,
+            Margin = new Padding(0)
+        };
+        var filterRow = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            WrapContents = false,
+            BackColor = Theme.Background,
+            Margin = new Padding(0, 4, 0, 0)
+        };
+        var destRow = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            WrapContents = false,
+            BackColor = Theme.Background,
+            Margin = new Padding(0, 4, 0, 0)
         };
 
         _lblSource.Text = "Zdroj: nevybraný";
         _lblSource.AutoSize = true;
+        _lblSource.MaximumSize = new Size(460, 0);
         _lblSource.Font = Theme.H3;
         _lblSource.ForeColor = Theme.Text;
         _lblSource.Margin = new Padding(0, 9, 18, 0);
-        toolbar.Controls.Add(_lblSource);
+        sourceRow.Controls.Add(_lblSource);
 
         _btnLoad.Text = "Načítať súbory";
         _btnLoad.AutoSize = true;
         _btnLoad.Click += async (_, _) => await LoadAsync();
         StyleButton(_btnLoad, primary: true);
-        toolbar.Controls.Add(_btnLoad);
+        sourceRow.Controls.Add(_btnLoad);
 
         _chkDeleted.Text = "Zobraziť aj zmazané";
         _chkDeleted.AutoSize = true;
         _chkDeleted.ForeColor = Theme.Muted;
         _chkDeleted.Margin = new Padding(10, 9, 6, 0);
-        toolbar.Controls.Add(_chkDeleted);
+        sourceRow.Controls.Add(_chkDeleted);
 
-        toolbar.Controls.Add(new Label
+        _btnCsv.Text = "Export CSV";
+        _btnCsv.AutoSize = true;
+        _btnCsv.Click += async (_, _) => await ExportCsvAsync();
+        StyleButton(_btnCsv);
+        sourceRow.Controls.Add(_btnCsv);
+
+        filterRow.Controls.Add(new Label
         {
             Text = "Filter:",
             AutoSize = true,
             ForeColor = Theme.Muted,
-            Margin = new Padding(12, 10, 2, 0)
+            Margin = new Padding(0, 10, 2, 0)
         });
 
-        _filter.Width = 180;
+        _filter.Width = 220;
         _filter.PlaceholderText = "časť názvu alebo cesty";
         _filter.Margin = new Padding(0, 6, 4, 0);
         _filter.KeyDown += (_, e) =>
         {
             if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; ApplyFilter(); }
         };
-        toolbar.Controls.Add(_filter);
+        filterRow.Controls.Add(_filter);
 
         var btnFilter = new Button { Text = "Filtrovať" };
         btnFilter.AutoSize = true;
         btnFilter.Click += (_, _) => ApplyFilter();
         StyleButton(btnFilter);
-        toolbar.Controls.Add(btnFilter);
+        filterRow.Controls.Add(btnFilter);
 
         var btnExpand = new Button { Text = "Rozbaliť" };
         btnExpand.AutoSize = true;
         btnExpand.Click += (_, _) => _tree.ExpandAll();
         StyleButton(btnExpand);
-        toolbar.Controls.Add(btnExpand);
+        filterRow.Controls.Add(btnExpand);
 
         var btnCollapse = new Button { Text = "Zbaliť" };
         btnCollapse.AutoSize = true;
         btnCollapse.Click += (_, _) => _tree.CollapseAll();
         StyleButton(btnCollapse);
-        toolbar.Controls.Add(btnCollapse);
+        filterRow.Controls.Add(btnCollapse);
 
-        _btnCsv.Text = "Export CSV";
-        _btnCsv.AutoSize = true;
-        _btnCsv.Click += async (_, _) => await ExportCsvAsync();
-        StyleButton(_btnCsv);
-        toolbar.Controls.Add(_btnCsv);
-
-        toolbar.Controls.Add(new Label
+        destRow.Controls.Add(new Label
         {
             Text = "Cieľ:",
             AutoSize = true,
             ForeColor = Theme.Muted,
-            Margin = new Padding(12, 10, 2, 0)
+            Margin = new Padding(0, 10, 2, 0)
         });
 
-        _dest.Width = 240;
+        _dest.Width = 280;
         _dest.PlaceholderText = "vyberte cieľový priečinok";
         _dest.Text = "";
         _dest.Margin = new Padding(0, 6, 4, 0);
-        toolbar.Controls.Add(_dest);
+        destRow.Controls.Add(_dest);
 
         var btnBrowse = new Button { Text = "Vybrať priečinok..." };
         btnBrowse.AutoSize = true;
         btnBrowse.Click += (_, _) => BrowseDestination();
         StyleButton(btnBrowse);
-        toolbar.Controls.Add(btnBrowse);
+        destRow.Controls.Add(btnBrowse);
 
         _chkOverwrite.Text = "Prepísať existujúce";
         _chkOverwrite.AutoSize = true;
         _chkOverwrite.ForeColor = Theme.Muted;
         _chkOverwrite.Margin = new Padding(4, 9, 10, 0);
-        toolbar.Controls.Add(_chkOverwrite);
+        destRow.Controls.Add(_chkOverwrite);
 
         _btnSave.Text = "Zachrániť";
         _btnSave.AutoSize = true;
         _btnSave.Click += async (_, _) => await SaveAsync();
         StyleButton(_btnSave, primary: true);
-        toolbar.Controls.Add(_btnSave);
+        destRow.Controls.Add(_btnSave);
+
+        toolbar.Controls.Add(sourceRow, 0, 0);
+        toolbar.Controls.Add(filterRow, 0, 1);
+        toolbar.Controls.Add(destRow, 0, 2);
 
         var treePanel = new Panel
         {

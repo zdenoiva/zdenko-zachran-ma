@@ -1,5 +1,22 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.16] - 2026-11-09
+
+- **Lišta aktualizácie**: percento sťahovania (napr. `18 %`, `100 %`) sa už
+  nezalamuje na dva riadky; stĺpec je širší a číslo je vždy na jednom riadku.
+- **Kruhový ukazovateľ zdravia**: percento je presne vycentrované v kruhu.
+- **O programe** obsahuje kompletný zoznam funkcií vrátane aktualizácií,
+  rozsahu kontroly povrchu, mapy, štatistík a SMART/NVMe karty.
+  Sekcia s nepoužitými nástrojmi je odstránená.
+- **Stabilné rozloženie pri zmene veľkosti okna**:
+  - hlavička má pevné dvojriadkové rozloženie (disk, tlačidlá, info, administrátor)
+  - záložky Boot, Disk, Diagnóza, Oprava, Protokol a Záchrana súborov už
+    nezalamujú tlačidlá na ďalší riadok
+  - Oprava má dva pevné riadky tlačidiel, Záchrana súborov tri
+  - dlhé varovné texty sa zalamujú podľa šírky okna namiesto odrezania
+- Povrch, Záchrana súborov a nové karty si držia rovnaké pozície tlačidiel
+  pri zväčšení aj zmenšení okna.
+
 ## [2.15] - 2026-11-09
 
 - **Grafická karta stavu disku v Sprievodcovi** (vpravo od verdiktu, podobne ako

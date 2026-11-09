@@ -38,7 +38,7 @@ public sealed class AboutPanel : UserControl
             "1. Program prečíta partition table a boot sector. Zistí NTFS, FAT32 alebo RAW.\n" +
             "2. Spraví rýchlu diagnostiku: boot sector, záložný boot sector, MFT/FAT, root adresár, dirty bit a S.M.A.R.T.\n" +
             "3. Navrhne najbezpečnejší ďalší krok. Nič nemení bez potvrdenia.\n" +
-            "4. Záchrana súborov je vždy len na čítanie zdrojového disku.\n" +
+            "4. Záchrana súborov je vždy len na čítanie zdrojového disku (NTFS aj FAT32, hĺbkový sken).\n" +
             "5. Oprava najprv uloží zálohu metadát, potom spustí chkdsk alebo obnoví boot/FAT. " +
             "Nakoniec overí prístup k súborom; ak ho blokuje ACL, automaticky spustí takeown + icacls.\n" +
             "6. Ak Windows volume nenamontuje (Access Denied), program ho vie odpojiť a znova " +
@@ -49,13 +49,16 @@ public sealed class AboutPanel : UserControl
             "9. Záložka Boot vie opraviť štart Windows cez bcdboot/bootsect, pripraviť BCD, " +
             "pridať Windows RE/OEM recovery a voliteľne previesť MBR na GPT cez mbr2gpt.\n" +
             "10. Záložka Disk vie odstrániť partície alebo celý disk prepísať nulami " +
-            "a vytvoriť novú partíciu NTFS/FAT32.\n" +
-            "11. Záložka Povrch prečíta celý disk, zobrazí mapu rýchlosti a vadné " +
-            "sektory, uloží report a vie sa pokúsiť o zápis/opravu vadných sektorov.\n" +
+            "a vytvoriť novú partíciu NTFS/FAT32 (GPT alebo MBR).\n" +
+            "11. Záložka Povrch prečíta celý disk alebo zvolený rozsah blokov, zobrazí mapu " +
+            "rýchlosti, štatistiky a vadné sektory, uloží CSV report a vie sa pokúsiť " +
+            "o zápis/opravu vadných sektorov.\n" +
             "12. Sprievodca zobrazí grafickú kartu stavu disku: zdravie v %, teplotu, " +
-            "životnosť SSD, sektory a pri NVMe aj zápis/čítanie z NVMe SMART logu."));
+            "životnosť SSD, sektory a pri NVMe aj zápis/čítanie z NVMe SMART logu.\n" +
+            "13. Aktualizácie: program skontroluje novú verziu, stiahne inštalátor alebo " +
+            "prenosnú verziu a po zavretí programu sa sám aktualizuje."));
 
-        layout.Controls.Add(Section("Použité nástroje a autori",
+        layout.Controls.Add(Section("Použité nástroje a licencie",
             "• Windows chkdsk — oprava NTFS/FAT32 (Microsoft)\n" +
             "• PowerShell Storage reliability counters — S.M.A.R.T. (Microsoft)\n" +
             "• Windows NVMe SMART/Health log page — DeviceIoControl (Microsoft)\n" +
@@ -63,15 +66,9 @@ public sealed class AboutPanel : UserControl
             "• DISM a SFC — automatická obnova systémových nástrojov (Microsoft)\n" +
             "• bcdboot, bcdedit, bootsect, reagentc, mbr2gpt — oprava bootovania (Microsoft)\n" +
             "• Clear-Disk, Initialize-Disk, New-Partition, Format-Volume — vymazanie a príprava disku (Microsoft)\n" +
-            "• rust-ntfs-recover (0BSD) — inšpirácia pre algoritmus hĺbkového NTFS skenu, autor mjgil-rust\n" +
-            "• baize (MIT) — inšpirácia pre trojvrstvový koncept, autor karminski\n" +
             "• Microsoft FAT specification — verejná dokumentácia pre FAT32 parser\n" +
+            "• Inno Setup — zostavenie inštalátora (Jordan Russell)\n" +
             "• Vlastný kód: Zdenko Ivančík"));
-
-        layout.Controls.Add(Section("Nepoužité nástroje",
-            "TestDisk/PhotoRec (GPL), RecuperaBit (GPL), The Sleuth Kit (CPL), " +
-            "ntfs-3g (GPL), dfir_ntfs (GPL), dissect.ntfs (AGPL) a ntfstool (MIT, voliteľný) " +
-            "nie sú v tejto verzii použité."));
 
         layout.Controls.Add(Section("Upozornenie",
             "Program pracuje s diskovými zariadeniami a pri oprave zapisuje do metadát. " +

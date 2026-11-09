@@ -269,13 +269,13 @@ public sealed class SurfacePanel : UserControl
         };
         _info.Text = "Vyberte disk.";
         _info.AutoSize = true;
-        _info.MaximumSize = new Size(1100, 0);
+        _info.MaximumSize = new Size(960, 0);
         _info.Font = Theme.Body;
         _info.ForeColor = Theme.Text;
         layout.Controls.Add(_info);
 
         _blocked.AutoSize = true;
-        _blocked.MaximumSize = new Size(1100, 0);
+        _blocked.MaximumSize = new Size(960, 0);
         _blocked.ForeColor = Theme.Danger;
         _blocked.Font = new Font("Segoe UI Semibold", 9f);
         _blocked.Visible = false;
@@ -283,7 +283,7 @@ public sealed class SurfacePanel : UserControl
         layout.Controls.Add(_blocked);
 
         _warning.AutoSize = true;
-        _warning.MaximumSize = new Size(1100, 0);
+        _warning.MaximumSize = new Size(960, 0);
         _warning.ForeColor = Theme.Warning;
         _warning.Font = Theme.Small;
         _warning.Margin = new Padding(0, 6, 0, 0);
@@ -957,4 +957,5 @@ public sealed class SurfacePanel : UserControl
         Log.Write("Povrch: " + line);
     }
 }
+
 

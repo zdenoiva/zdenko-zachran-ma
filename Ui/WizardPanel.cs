@@ -111,7 +111,7 @@ public sealed class WizardPanel : UserControl
 
         _actions.Dock = DockStyle.Top;
         _actions.AutoSize = true;
-        _actions.WrapContents = true;
+        _actions.WrapContents = false;
         _actions.Padding = new Padding(0, 4, 0, 12);
         _actions.BackColor = Theme.Background;
 

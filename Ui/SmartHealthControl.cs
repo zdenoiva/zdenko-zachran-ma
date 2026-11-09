@@ -259,14 +259,15 @@ public sealed class SmartHealthControl : UserControl
             using var big = new Font("Segoe UI Semibold", 16f);
             using var small = new Font("Segoe UI Semibold", 8f);
             var bigText = Percent >= 0 ? Percent + " %" : "—";
-            var bigSize = TextRenderer.MeasureText(bigText, big);
+            var bigSize = TextRenderer.MeasureText(g, bigText, big, Size.Empty, TextFormatFlags.NoPadding);
             int centerY = area.Height / 2;
             TextRenderer.DrawText(g, bigText, big,
-                new Rectangle(0, centerY - bigSize.Height + 4, area.Width, bigSize.Height),
-                Theme.Text, TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPadding);
+                new Point((area.Width - bigSize.Width) / 2, centerY - bigSize.Height + 4),
+                Theme.Text, TextFormatFlags.NoPadding);
+            var smallSize = TextRenderer.MeasureText(g, Caption, small, Size.Empty, TextFormatFlags.NoPadding);
             TextRenderer.DrawText(g, Caption, small,
-                new Rectangle(0, centerY + 4, area.Width, 18),
-                Accent, TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPadding);
+                new Point((area.Width - smallSize.Width) / 2, centerY + 6),
+                Accent, TextFormatFlags.NoPadding);
         }
     }
 }

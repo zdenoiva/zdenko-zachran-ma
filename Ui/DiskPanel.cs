@@ -74,7 +74,7 @@ public sealed class DiskPanel : UserControl
         var panel = new FlowLayoutPanel
         {
             AutoSize = true,
-            WrapContents = true,
+            WrapContents = false,
             BackColor = Theme.Background,
             Margin = new Padding(0, 0, 0, 10)
         };
@@ -127,13 +127,13 @@ public sealed class DiskPanel : UserControl
 
         _diskInfo.Text = "Vyberte disk.";
         _diskInfo.AutoSize = true;
-        _diskInfo.MaximumSize = new Size(1100, 0);
+        _diskInfo.MaximumSize = new Size(960, 0);
         _diskInfo.Font = Theme.Body;
         _diskInfo.ForeColor = Theme.Text;
         layout.Controls.Add(_diskInfo);
 
         _blocked.AutoSize = true;
-        _blocked.MaximumSize = new Size(1100, 0);
+        _blocked.MaximumSize = new Size(960, 0);
         _blocked.ForeColor = Theme.Danger;
         _blocked.Font = new Font("Segoe UI Semibold", 9f);
         _blocked.Visible = false;
@@ -141,7 +141,7 @@ public sealed class DiskPanel : UserControl
         layout.Controls.Add(_blocked);
 
         _warning.AutoSize = true;
-        _warning.MaximumSize = new Size(1100, 0);
+        _warning.MaximumSize = new Size(960, 0);
         _warning.ForeColor = Theme.Warning;
         _warning.Font = Theme.Small;
         _warning.Margin = new Padding(0, 6, 0, 0);
@@ -247,7 +247,7 @@ public sealed class DiskPanel : UserControl
         var panel = new FlowLayoutPanel
         {
             AutoSize = true,
-            WrapContents = true,
+            WrapContents = false,
             BackColor = Theme.Background,
             Margin = new Padding(0, 0, 0, 8)
         };
@@ -574,3 +574,4 @@ public sealed class DiskPanel : UserControl
         Log.Write("Disk: " + line);
     }
 }
+

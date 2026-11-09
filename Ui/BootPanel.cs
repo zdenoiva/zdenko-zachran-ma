@@ -85,13 +85,20 @@ public sealed class BootPanel : UserControl
 
     private Control BuildToolbar()
     {
-        var panel = new FlowLayoutPanel
+        var panel = new TableLayoutPanel
         {
+            Dock = DockStyle.Top,
             AutoSize = true,
-            WrapContents = true,
+            ColumnCount = 3,
+            RowCount = 2,
             BackColor = Theme.Background,
             Margin = new Padding(0, 0, 0, 10)
         };
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         panel.Controls.Add(new Label
         {
@@ -100,50 +107,72 @@ public sealed class BootPanel : UserControl
             Font = new Font("Segoe UI Semibold", 9.5f),
             ForeColor = Theme.Text,
             Margin = new Padding(0, 8, 8, 0)
-        });
+        }, 0, 0);
 
         _diskCombo.DropDownStyle = ComboBoxStyle.DropDownList;
-        _diskCombo.Width = 620;
-        _diskCombo.Margin = new Padding(0, 4, 8, 0);
+        _diskCombo.Width = 520;
+        _diskCombo.Dock = DockStyle.None;
+        _diskCombo.Anchor = AnchorStyles.Left;
+        _diskCombo.Margin = new Padding(0, 4, 12, 0);
         _diskCombo.SelectedIndexChanged += (_, _) =>
         {
             _analysis = null;
             ClearResults();
         };
-        panel.Controls.Add(_diskCombo);
+        panel.Controls.Add(_diskCombo, 1, 0);
+
+        var actions = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            WrapContents = false,
+            Anchor = AnchorStyles.Right,
+            BackColor = Theme.Background,
+            Margin = new Padding(0)
+        };
 
         _btnReload.Text = "Obnoviť disky";
         _btnReload.AutoSize = true;
         _btnReload.Margin = new Padding(0, 3, 8, 0);
         _btnReload.Click += async (_, _) => await LoadDisksAsync();
-        panel.Controls.Add(_btnReload);
+        actions.Controls.Add(_btnReload);
 
         _btnCheck.Text = "Skontrolovať bootovanie";
         _btnCheck.AutoSize = true;
         _btnCheck.Font = new Font(Font, FontStyle.Bold);
         _btnCheck.Margin = new Padding(0, 3, 8, 0);
         _btnCheck.Click += async (_, _) => await CheckAsync();
-        panel.Controls.Add(_btnCheck);
+        actions.Controls.Add(_btnCheck);
 
         _btnCancel.Text = "Zrušiť";
         _btnCancel.AutoSize = true;
         _btnCancel.Visible = false;
         _btnCancel.Margin = new Padding(0, 3, 8, 0);
         _btnCancel.Click += (_, _) => _cts?.Cancel();
-        panel.Controls.Add(_btnCancel);
+        actions.Controls.Add(_btnCancel);
 
+        panel.Controls.Add(actions, 2, 0);
+
+        var statusRow = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            WrapContents = false,
+            BackColor = Theme.Background,
+            Margin = new Padding(0, 2, 0, 0)
+        };
         _progress.Visible = false;
         _progress.Style = ProgressBarStyle.Marquee;
-        _progress.Size = new Size(120, 18);
-        _progress.Margin = new Padding(0, 8, 0, 0);
-        panel.Controls.Add(_progress);
+        _progress.Size = new Size(160, 16);
+        _progress.Margin = new Padding(0, 3, 10, 0);
+        statusRow.Controls.Add(_progress);
 
         _status.Text = "Vyberte disk";
         _status.AutoSize = true;
         _status.ForeColor = Theme.Muted;
-        _status.Margin = new Padding(8, 8, 0, 0);
-        panel.Controls.Add(_status);
+        _status.Margin = new Padding(0, 3, 0, 0);
+        statusRow.Controls.Add(_status);
 
+        panel.Controls.Add(statusRow, 0, 1);
+        panel.SetColumnSpan(statusRow, 3);
         return panel;
     }
 
@@ -181,7 +210,7 @@ public sealed class BootPanel : UserControl
         AddSummaryRow(layout, 3, "Boot / recovery", _bcd);
 
         _recovery.AutoSize = true;
-        _recovery.MaximumSize = new Size(1100, 0);
+        _recovery.MaximumSize = new Size(960, 0);
         _recovery.Font = Theme.Small;
         _recovery.ForeColor = Theme.Muted;
         _recovery.Margin = new Padding(0, 6, 0, 0);
@@ -190,7 +219,7 @@ public sealed class BootPanel : UserControl
 
         _summary.Text = "Vyberte disk a spustite kontrolu.";
         _summary.AutoSize = true;
-        _summary.MaximumSize = new Size(1100, 0);
+        _summary.MaximumSize = new Size(960, 0);
         _summary.Font = new Font("Segoe UI Semibold", 9.5f);
         _summary.ForeColor = Theme.Muted;
         _summary.Margin = new Padding(0, 8, 0, 0);
@@ -198,7 +227,7 @@ public sealed class BootPanel : UserControl
         layout.SetColumnSpan(_summary, 2);
 
         _blocked.AutoSize = true;
-        _blocked.MaximumSize = new Size(1100, 0);
+        _blocked.MaximumSize = new Size(960, 0);
         _blocked.ForeColor = Theme.Danger;
         _blocked.Font = new Font("Segoe UI Semibold", 9f);
         _blocked.Visible = false;
@@ -302,7 +331,7 @@ public sealed class BootPanel : UserControl
         var panel = new FlowLayoutPanel
         {
             AutoSize = true,
-            WrapContents = true,
+            WrapContents = false,
             BackColor = Theme.Background,
             Margin = new Padding(0, 8, 0, 0)
         };
@@ -771,3 +800,4 @@ public sealed class BootPanel : UserControl
         Log.Write("Boot: " + line);
     }
 }
+

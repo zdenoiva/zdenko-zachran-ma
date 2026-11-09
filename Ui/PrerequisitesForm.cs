@@ -218,7 +218,7 @@ public sealed class PrerequisitesForm : Form
         {
             Dock = DockStyle.Fill,
             AutoSize = true,
-            WrapContents = true,
+            WrapContents = false,
             Padding = new Padding(20, 4, 20, 16),
             BackColor = Theme.Background
         };

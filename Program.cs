@@ -254,6 +254,15 @@ internal static class Program
                     Opacity = 1,
                     ShowInTaskbar = false
                 };
+                var sizeText = args.SkipWhile(a => !a.Equals("--uishotsize", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(sizeText))
+                {
+                    var parts = sizeText.Split('x');
+                    if (parts.Length == 2 && int.TryParse(parts[0], out int width) &&
+                        int.TryParse(parts[1], out int height))
+                        form.ClientSize = new Size(width, height);
+                }
                 form.Show();
                 if (args.Any(a => a.Equals("--diagtab", StringComparison.OrdinalIgnoreCase)))
                     form.SelectTabForTest(1);
@@ -263,6 +272,10 @@ internal static class Program
                     form.SelectTabForTest(3);
                 if (args.Any(a => a.Equals("--surfacetab", StringComparison.OrdinalIgnoreCase)))
                     form.SelectTabForTest(4);
+                var tabArg = args.SkipWhile(a => !a.Equals("--tab", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                if (int.TryParse(tabArg, out int tabIndex))
+                    form.SelectTabForTest(tabIndex);
                 if (args.Any(a => a.Equals("--updatebanner", StringComparison.OrdinalIgnoreCase)))
                 {
                     if (loadDisks &&
@@ -275,6 +288,17 @@ internal static class Program
                         }
                     }
                     form.ShowUpdateBannerForTest("9.9");
+                }
+                var progressArg = args.SkipWhile(a => !a.Equals("--updateprogress", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                if (int.TryParse(progressArg, out int updatePercent))
+                {
+                    form.ShowUpdateProgressForTest(updatePercent);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        Application.DoEvents();
+                        Thread.Sleep(50);
+                    }
                 }
                 var wizardArg = args.SkipWhile(a => !a.Equals("--wizardletter", StringComparison.OrdinalIgnoreCase))
                     .Skip(1).FirstOrDefault();

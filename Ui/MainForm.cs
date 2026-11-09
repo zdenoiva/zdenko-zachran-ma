@@ -143,6 +143,17 @@ public sealed class MainForm : Form
         SetUpdateBannerVisible(true);
     }
 
+    public void ShowUpdateProgressForTest(int percent)
+    {
+        ShowUpdateBannerForTest("9.9");
+        _updateProgress.Visible = true;
+        _updatePercent.Visible = true;
+        _updateProgress.Value = Math.Clamp(percent, 0, 100);
+        _updatePercent.Text = percent + " %";
+        _updateLabel.Text = "Sťahujem verziu 9.9…";
+        _updateLink.Text = "Sťahujem…";
+    }
+
     private void SetUpdateBannerVisible(bool visible)
     {
         _updateBanner.Visible = visible;
@@ -241,54 +252,76 @@ public sealed class MainForm : Form
         titleRow.Controls.Add(subtitle);
         titleRow.Controls.Add(version);
 
-        var controls = new FlowLayoutPanel
+        var controls = new TableLayoutPanel
         {
+            Dock = DockStyle.Top,
             AutoSize = true,
-            WrapContents = true,
+            ColumnCount = 3,
+            RowCount = 2,
             BackColor = Color.Transparent,
             Margin = new Padding(0, 12, 0, 0)
         };
-        controls.Controls.Add(new Label
+        controls.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        controls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        controls.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        controls.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        controls.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var diskLabel = new Label
         {
             Text = "Disk / partícia:",
             AutoSize = true,
             ForeColor = Color.FromArgb(220, 238, 248),
             BackColor = Color.Transparent,
             Margin = new Padding(0, 9, 6, 0)
-        });
+        };
+        controls.Controls.Add(diskLabel, 0, 0);
 
         _volumeCombo.DropDownStyle = ComboBoxStyle.DropDownList;
         _volumeCombo.Width = 540;
         _volumeCombo.Height = 30;
-        _volumeCombo.Margin = new Padding(0, 4, 8, 0);
+        _volumeCombo.MaximumSize = new Size(620, 0);
+        _volumeCombo.Dock = DockStyle.Fill;
+        _volumeCombo.Margin = new Padding(0, 4, 12, 0);
         _volumeCombo.SelectedIndexChanged += async (_, _) => await OnPartitionSelectedAsync();
-        controls.Controls.Add(_volumeCombo);
+        controls.Controls.Add(_volumeCombo, 1, 0);
 
+        var headerButtons = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            WrapContents = false,
+            Anchor = AnchorStyles.Right,
+            BackColor = Color.Transparent,
+            Margin = new Padding(0)
+        };
         StyleHeaderButton(_refreshButton, "Obnoviť zoznam", new Padding(0, 3, 12, 0));
         _refreshButton.Click += async (_, _) => await LoadPartitionsAsync();
-        controls.Controls.Add(_refreshButton);
+        headerButtons.Controls.Add(_refreshButton);
 
         StyleHeaderButton(_btnImage, "Vytvoriť obraz", new Padding(0, 3, 8, 0));
         _btnImage.Click += async (_, _) => await CreateImageAsync();
-        controls.Controls.Add(_btnImage);
+        headerButtons.Controls.Add(_btnImage);
 
         StyleHeaderButton(_btnOpenImage, "Otvoriť obraz", new Padding(0, 3, 12, 0));
         _btnOpenImage.Click += async (_, _) => await OpenImageAsync();
-        controls.Controls.Add(_btnOpenImage);
+        headerButtons.Controls.Add(_btnOpenImage);
+        controls.Controls.Add(headerButtons, 2, 0);
 
         _volumeInfo.AutoSize = true;
         _volumeInfo.MaximumSize = new Size(650, 0);
         _volumeInfo.ForeColor = Color.FromArgb(220, 238, 248);
         _volumeInfo.BackColor = Color.Transparent;
         _volumeInfo.Margin = new Padding(0, 9, 0, 0);
-        controls.Controls.Add(_volumeInfo);
+        controls.Controls.Add(_volumeInfo, 0, 1);
+        controls.SetColumnSpan(_volumeInfo, 2);
 
         _adminLabel.Text = "● Administrátor";
         _adminLabel.AutoSize = true;
         _adminLabel.ForeColor = Color.FromArgb(150, 245, 190);
         _adminLabel.BackColor = Color.Transparent;
+        _adminLabel.Anchor = AnchorStyles.Right;
         _adminLabel.Margin = new Padding(12, 9, 0, 0);
-        controls.Controls.Add(_adminLabel);
+        controls.Controls.Add(_adminLabel, 2, 1);
 
         _busyControls.Add(_volumeCombo);
         _busyControls.Add(_refreshButton);
@@ -342,8 +375,8 @@ public sealed class MainForm : Form
         };
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 24));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
-        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 68));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34));
 
@@ -378,9 +411,10 @@ public sealed class MainForm : Form
         _updatePercent.AutoSize = false;
         _updatePercent.Dock = DockStyle.Fill;
         _updatePercent.TextAlign = ContentAlignment.MiddleRight;
-        _updatePercent.Font = new Font("Segoe UI Semibold", 8.5f);
+        _updatePercent.Font = new Font("Segoe UI Semibold", 9f);
         _updatePercent.ForeColor = Color.FromArgb(125, 80, 0);
         _updatePercent.Visible = false;
+        _updatePercent.Margin = new Padding(4, 0, 6, 0);
         grid.Controls.Add(_updatePercent, 3, 0);
 
         _updateLink.Text = "Aktualizovať";
@@ -612,7 +646,7 @@ public sealed class MainForm : Form
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var toolbar = new FlowLayoutPanel { AutoSize = true, WrapContents = true, Padding = new Padding(8) };
+        var toolbar = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Padding = new Padding(8) };
         _btnDiagnose.Text = "Spustiť diagnostiku (len čítanie)";
         _btnDiagnose.AutoSize = true;
         _btnDiagnose.Font = new Font(Font, FontStyle.Bold);
@@ -692,14 +726,14 @@ public sealed class MainForm : Form
             Font = Theme.Body,
             ForeColor = Theme.Muted,
             AutoSize = true,
-            MaximumSize = new Size(1150, 0),
+            MaximumSize = new Size(960, 0),
             Margin = new Padding(0, 0, 0, 8)
         });
 
         var buttons = new FlowLayoutPanel
         {
             AutoSize = true,
-            WrapContents = true,
+            WrapContents = false,
             BackColor = Theme.Surface,
             Margin = new Padding(0)
         };
@@ -774,7 +808,7 @@ public sealed class MainForm : Form
         var warning = new Label
         {
             AutoSize = true,
-            MaximumSize = new Size(1200, 0),
+            MaximumSize = new Size(960, 0),
             ForeColor = Color.FromArgb(150, 90, 0),
             BackColor = Color.FromArgb(255, 248, 230),
             Padding = new Padding(10),
@@ -785,12 +819,38 @@ public sealed class MainForm : Form
         };
         root.Controls.Add(warning, 0, 0);
 
-        var toolbar = new FlowLayoutPanel { AutoSize = true, WrapContents = true, Padding = new Padding(8, 8, 8, 4) };
+        var toolbar = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(8, 8, 8, 4),
+            BackColor = Theme.Background
+        };
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        toolbar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        toolbar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var primaryRow = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            WrapContents = false,
+            BackColor = Theme.Background,
+            Margin = new Padding(0)
+        };
+        var extraRow = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            WrapContents = false,
+            BackColor = Theme.Background,
+            Margin = new Padding(0, 2, 0, 0)
+        };
 
         _btnBackup.Text = "1. Zálohovať metadáta";
         _btnBackup.AutoSize = true;
         _btnBackup.Click += async (_, _) => await BackupMetadataAsync();
-        toolbar.Controls.Add(_btnBackup);
+        primaryRow.Controls.Add(_btnBackup);
         _busyControls.Add(_btnBackup);
 
         _btnRepair.Text = "2. OPRAVIŤ NTFS";
@@ -800,33 +860,36 @@ public sealed class MainForm : Form
         _btnRepair.BackColor = Color.FromArgb(180, 70, 40);
         _btnRepair.FlatStyle = FlatStyle.Flat;
         _btnRepair.Click += async (_, _) => await RepairAsync();
-        toolbar.Controls.Add(_btnRepair);
+        primaryRow.Controls.Add(_btnRepair);
         _busyControls.Add(_btnRepair);
 
         _btnVerify.Text = "3. Overiť";
         _btnVerify.AutoSize = true;
         _btnVerify.Click += async (_, _) => await VerifyAsync();
-        toolbar.Controls.Add(_btnVerify);
+        primaryRow.Controls.Add(_btnVerify);
         _busyControls.Add(_btnVerify);
 
         _btnReboot.Text = "Reštartovať počítač";
         _btnReboot.AutoSize = true;
         _btnReboot.Click += (_, _) => RebootAsync();
-        toolbar.Controls.Add(_btnReboot);
+        primaryRow.Controls.Add(_btnReboot);
         _busyControls.Add(_btnReboot);
 
         _btnRestoreBoot.Text = "Obnoviť boot sector...";
         _btnRestoreBoot.AutoSize = true;
         _btnRestoreBoot.Enabled = false;
         _btnRestoreBoot.Click += async (_, _) => await RestoreBootSectorAsync();
-        toolbar.Controls.Add(_btnRestoreBoot);
+        extraRow.Controls.Add(_btnRestoreBoot);
         _busyControls.Add(_btnRestoreBoot);
 
         _chkFullScan.Text = "použiť /r (kontrola povrchu, dlhé)";
         _chkFullScan.AutoSize = true;
         _chkFullScan.Margin = new Padding(10, 8, 8, 0);
-        toolbar.Controls.Add(_chkFullScan);
+        extraRow.Controls.Add(_chkFullScan);
         _busyControls.Add(_chkFullScan);
+
+        toolbar.Controls.Add(primaryRow, 0, 0);
+        toolbar.Controls.Add(extraRow, 0, 1);
 
         _chkInventory.Text = "pred opravou uložiť inventár CSV";
         _chkInventory.Checked = true;
@@ -863,7 +926,7 @@ public sealed class MainForm : Form
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var toolbar = new FlowLayoutPanel { AutoSize = true, WrapContents = true, Padding = new Padding(8) };
+        var toolbar = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Padding = new Padding(8) };
         _btnSaveSession.Text = "Uložiť protokol";
         _btnSaveSession.AutoSize = true;
         _btnSaveSession.Click += (_, _) => SaveText(_sessionLog.Text, "protokol");
@@ -2214,4 +2277,5 @@ public sealed class MainForm : Form
         base.Dispose(disposing);
     }
 }
+
 
