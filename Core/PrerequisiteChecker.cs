@@ -1,4 +1,6 @@
+using System.Runtime.InteropServices;
 using System.Security.Principal;
+using Microsoft.Win32;
 using NtfsRescue.Util;
 
 namespace NtfsRescue.Core;
@@ -27,14 +29,15 @@ public static class PrerequisiteChecker
         var items = new List<PrerequisiteItem>();
 
         // 1. Windows x64
-        var build = Environment.OSVersion.Version.Build;
+        var build = DetectWindowsBuild();
         var winOk = Environment.Is64BitOperatingSystem && build >= 17763;
+        var windowsLabel = build >= 22000 ? "Windows 11" : "Windows 10";
         items.Add(new PrerequisiteItem
         {
             Key = "windows",
             Title = "Windows 10/11 64-bit",
             Detail = winOk
-                ? $"Windows build {build}, 64-bit"
+                ? $"{windowsLabel} · build {build} · 64-bit"
                 : $"Zistený Windows build {build}, 64-bit={Environment.Is64BitOperatingSystem}. " +
                   "Program potrebuje Windows 10/11 x64.",
             Required = true,
@@ -229,4 +232,56 @@ public static class PrerequisiteChecker
             return false;
         }
     }
+
+    /// <summary>
+    /// Skutočný build Windows. Environment.OSVersion môže pri kompatibilnom
+    /// režime hlásiť nepravdivé číslo (napr. 6002), preto sa číta registry
+    /// a ako záloha RtlGetVersion.
+    /// </summary>
+    private static int DetectWindowsBuild()
+    {
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(
+                @"SOFTWARE\Microsoft\Windows NT\CurrentVersion");
+            if (key?.GetValue("CurrentBuildNumber") is string text &&
+                int.TryParse(text, out int registryBuild) && registryBuild > 0)
+                return registryBuild;
+        }
+        catch { }
+
+        try
+        {
+            var version = new OsVersionInfoEx
+            {
+                Size = Marshal.SizeOf<OsVersionInfoEx>(),
+                CsdVersion = ""
+            };
+            if (RtlGetVersion(ref version) == 0 && version.Build > 0)
+                return version.Build;
+        }
+        catch { }
+
+        return Environment.OSVersion.Version.Build;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct OsVersionInfoEx
+    {
+        public int Size;
+        public int Major;
+        public int Minor;
+        public int Build;
+        public int Platform;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string CsdVersion;
+        public ushort ServicePackMajor;
+        public ushort ServicePackMinor;
+        public ushort SuiteMask;
+        public byte ProductType;
+        public byte Reserved;
+    }
+
+    [DllImport("ntdll.dll")]
+    private static extern int RtlGetVersion(ref OsVersionInfoEx version);
 }

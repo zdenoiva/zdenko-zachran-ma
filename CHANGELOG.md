@@ -1,5 +1,15 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.18] - 2026-11-09
+
+- **Oprava falošného „Windows 10/11: CHÝBA“** na niektorých PC s Windows 11:
+  - build sa už nečíta cez `Environment.OSVersion`, ktorý pri zapnutom
+    kompatibilnom režime hlási nepravdivé číslo (napr. 6002 = Vista SP2)
+  - nový build sa čítá z registry `CurrentBuildNumber` a ako záloha cez
+    `RtlGetVersion` (obchádza kompatibilné režimy)
+  - kontrola zobrazí napr. „Windows 11 · build 22631 · 64-bit“
+- Ak je Windows skutočne starší ako 10, kontrola ho stále správne odmietne.
+
 ## [2.17] - 2026-11-09
 
 - **Rýchly test čítania pri diagnostike** (Sprievodca):
