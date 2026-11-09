@@ -1,6 +1,6 @@
 # Zdenko, zachráň ma!
 
-**Verzia 2.5** · © 2026 **Zdenko Ivančík**
+**Verzia 2.6** · © 2026 **Zdenko Ivančík**
 
 Nekomerčné použitie je povolené. **Komerčné použitie je možné len s výslovným
 súhlasom autora.**
@@ -12,7 +12,7 @@ potvrdenia.
 - GitHub: <https://github.com/zdenoiva/zdenko-zachran-ma>
 - Releases: <https://github.com/zdenoiva/zdenko-zachran-ma/releases>
 - Stránka na stiahnutie: <https://zdenoiva.github.io/zdenko-zachran-ma/>
-- Aktuálna verzia: **2.5**
+- Aktuálna verzia: **2.6**
 
 ## Inštalácia alebo prenosné spustenie
 
@@ -20,7 +20,7 @@ potvrdenia.
   - **jeden súbor**, self-contained, nepotrebuje .NET ani inštaláciu
   - skopírujte ho na iný počítač a spustite
   - všetky potrebné natívne knižnice sa rozbalia dočasne automaticky
-- **Inštalátor:** `dist\ZachranaDisku-Setup-2.5.exe`
+- **Inštalátor:** `dist\ZachranaDisku-Setup-2.6.exe`
   - po spustení ponúkne dve možnosti:
     - **Nainštalovať do počítača** (Program Files, Štart, odinštalovanie cez
       Nastavenia → Aplikácie)
@@ -112,6 +112,21 @@ potvrdenia.
   písmeno** cez PowerShell a po oprave ho odoberie
 - systémové/recovery partície program odmieta opravovať
 
+### Boot — oprava štartu Windows
+- samostatná záložka **Boot** pre celý disk
+- detekcia **UEFI/BIOS** a **GPT/MBR**
+- UEFI: ESP, `bootmgfw.efi`, `\EFI\Boot\bootx64.efi`, BCD
+- BIOS: active partícia, `bootmgr`, MBR boot code, VBR, disk signature
+- oprava:
+  - UEFI: `bcdboot /f UEFI`
+  - BIOS: `bcdboot /f BIOS` + `bootsect /nt60 /mbr`
+- pred zápisom sa vždy uloží záloha BCD, boot súborov, MBR a VBR
+- **aktuálny systémový disk je pre opravu zablokovaný**; použiť treba iný disk
+  alebo WinRE
+- voliteľná **konverzia MBR → GPT** cez `mbr2gpt` s kontrolou a varovaním
+- pridanie **Windows RE / OEM recovery WIM** do boot menu
+- samostatný popis nastavení **BIOS/UEFI** vrátane rizika SATA/RAID/AHCI radičov
+
 ### Protokol a zálohy
 - všetky operácie sa logujú do `%LOCALAPPDATA%\ZdenkoZachranMa\logs`
 - zálohy metadát: `Dokumenty\ZdenkoZachranMa\zalohy`
@@ -164,7 +179,7 @@ winget install JRSoftware.InnoSetup
 .\make-installer.ps1
 ```
 
-Výsledok: `dist\ZachranaDisku-Setup-2.5.exe`.
+Výsledok: `dist\ZachranaDisku-Setup-2.6.exe`.
 
 ## Vydanie novej verzie
 
@@ -187,7 +202,7 @@ Potom commitnite a pushnite `latest.json` a `CHANGELOG.md`:
 
 ```powershell
 git add latest.json CHANGELOG.md
-git commit -m "Release v2.5"
+git commit -m "Release v2.6"
 git push
 ```
 
@@ -231,6 +246,7 @@ Licenčné texty tretích strán: `THIRD_PARTY_NOTICES.md`.
 Program pracuje s diskovými zariadeniami a pri oprave zapisuje do metadát.
 Používate ho na vlastné riziko. Pred opravou si vždy skopírujte dôležité dáta.
 Záchrana má zmysel len dovtedy, kým sa prepísané dáta neprepíšu inými.
+
 
 
 

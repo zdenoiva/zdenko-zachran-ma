@@ -23,6 +23,7 @@ public sealed class MainForm : Form
     private readonly RecoveryPanel _recovery = new();
     private readonly WizardPanel _wizard = new();
     private readonly AboutPanel _about = new();
+    private readonly BootPanel _boot = new();
     private SplitContainer? _diagSplit;
 
     private readonly Button _btnDiagnose = new();
@@ -386,6 +387,7 @@ public sealed class MainForm : Form
 
         _tabs.TabPages.Add(BuildWizardTab());
         _tabs.TabPages.Add(BuildDiagnosticsTab());
+        _tabs.TabPages.Add(BuildBootTab());
         _tabs.TabPages.Add(BuildRepairTab());
 
         var recoveryTab = new TabPage("Záchrana súborov")
@@ -398,6 +400,11 @@ public sealed class MainForm : Form
 
         _tabs.TabPages.Add(BuildAboutTab());
         _tabs.TabPages.Add(BuildLogTab());
+        _tabs.SelectedIndexChanged += (_, _) =>
+        {
+            if (_tabs.SelectedTab?.Controls.Contains(_boot) == true)
+                _ = _boot.EnsureLoadedAsync();
+        };
         return _tabs;
     }
 
@@ -409,6 +416,17 @@ public sealed class MainForm : Form
             Padding = new Padding(0)
         };
         page.Controls.Add(_wizard);
+        return page;
+    }
+
+    private TabPage BuildBootTab()
+    {
+        var page = new TabPage("Boot")
+        {
+            BackColor = Theme.Background,
+            Padding = new Padding(0)
+        };
+        page.Controls.Add(_boot);
         return page;
     }
 

@@ -1,5 +1,16 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.6] - 2026-11-09
+
+- Nová záložka **Boot** na kontrolu a opravu bootovania Windows.
+- Detekcia UEFI/BIOS, GPT/MBR, ESP, active partície, BCD a recovery.
+- Oprava UEFI cez `bcdboot /f UEFI` a BIOS cez `bcdboot /f BIOS` + `bootsect`.
+- Záloha BCD, boot súborov, MBR a VBR pred každou opravou.
+- Oprava je povolená len pre iné disky; aktuálny systémový disk je blokovaný.
+- Voliteľná konverzia MBR → GPT cez `mbr2gpt` s varovaním na BIOS a radiče.
+- Pridanie Windows RE a OEM recovery (WIM) do boot menu.
+- Popis nastavení BIOS/UEFI a upozornenie na SATA/RAID/AHCI radiče.
+
 ## [2.5] - 2026-11-09
 
 - Prenosný súbor premenovaný na `ZachranaDisku.exe`; názov aplikácie zostáva „Zdenko, zachráň ma!“.

@@ -17,6 +17,9 @@ public static class AppPaths
 
     public static string RecoveryDefault =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ZdenkoZachranMa", "zachrana");
+
+    public static string BootBackups =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ZdenkoZachranMa", "boot-backup");
 }
 
 public static class Log

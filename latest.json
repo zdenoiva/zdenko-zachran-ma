@@ -1,21 +1,22 @@
 {
-  "version": "2.5",
-  "tag": "v2.5",
-  "publishedAt": "2026-11-09T09:11:26Z",
+  "version": "2.6",
+  "tag": "v2.6",
+  "publishedAt": "2026-11-09T10:02:03Z",
   "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
-  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.5/ZachranaDisku.exe",
-  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.5/ZachranaDisku-Setup-2.5.exe",
-  "sha256": "1132e39762f13c23b05546379e0bac4859c3cbeabc3e7df78ed56f6d72858551",
-  "installerSha256": "86dc0033484e7ed3db359cf70b4ad775bb0adf1be2ea0054d82c2ca950a7c790",
-  "size": 52299308,
-  "installerSize": 47252889,
+  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.6/ZachranaDisku.exe",
+  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.6/ZachranaDisku-Setup-2.6.exe",
+  "sha256": "b53d213ed8c79d41061fa420b77256c8d2f868494ff8ed0cccc21e2e1ad057d0",
+  "installerSha256": "9920eabe86219854162aa3e588414cdf97bc0e234d0b7eea38c10e9d6bd3d3c0",
+  "size": 52329308,
+  "installerSize": 47284597,
   "changelog": [
-    "Prenosný súbor premenovaný na `ZachranaDisku.exe`; názov aplikácie zostáva „Zdenko, zachráň ma!“.",
-    "Inštalátor má názov `ZachranaDisku-Setup-2.5.exe`.",
-    "Pridaná kontrola novšej verzie pri spustení aplikácie.",
-    "Nová stránka na stiahnutie na GitHub Pages.",
-    "Prenosná verzia a inštalátor sa vydávajú cez GitHub Releases.",
-    "`latest.json` obsahuje verziu, odkazy, veľkosť a SHA256.",
-    "Doplnené vydávanie cez `release.ps1`."
+    "Nová záložka **Boot** na kontrolu a opravu bootovania Windows.",
+    "Detekcia UEFI/BIOS, GPT/MBR, ESP, active partície, BCD a recovery.",
+    "Oprava UEFI cez `bcdboot /f UEFI` a BIOS cez `bcdboot /f BIOS` + `bootsect`.",
+    "Záloha BCD, boot súborov, MBR a VBR pred každou opravou.",
+    "Oprava je povolená len pre iné disky; aktuálny systémový disk je blokovaný.",
+    "Voliteľná konverzia MBR → GPT cez `mbr2gpt` s varovaním na BIOS a radiče.",
+    "Pridanie Windows RE a OEM recovery (WIM) do boot menu.",
+    "Popis nastavení BIOS/UEFI a upozornenie na SATA/RAID/AHCI radiče."
   ]
 }

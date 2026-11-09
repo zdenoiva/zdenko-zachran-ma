@@ -45,13 +45,16 @@ public sealed class AboutPanel : UserControl
             "pripojiť a obnoviť ACL na koreni.\n" +
             "7. Obraz disku sa ukladá mimo zdrojového disku; nečitateľné sektory sa zapíšu do logu.\n" +
             "8. V Diagnóze vie overiť systémové súbory Windows cez DISM a opraviť ich cez " +
-            "DISM RestoreHealth + SFC."));
+            "DISM RestoreHealth + SFC.\n" +
+            "9. Záložka Boot vie opraviť štart Windows cez bcdboot/bootsect, pripraviť BCD, " +
+            "pridať Windows RE/OEM recovery a voliteľne previesť MBR na GPT cez mbr2gpt."));
 
         layout.Controls.Add(Section("Použité nástroje a autori",
             "• Windows chkdsk — oprava NTFS/FAT32 (Microsoft)\n" +
             "• PowerShell Storage reliability counters — S.M.A.R.T. (Microsoft)\n" +
             "• PowerShell Storage cmdlets — dočasné písmeno a stav volume (Microsoft)\n" +
             "• DISM a SFC — automatická obnova systémových nástrojov (Microsoft)\n" +
+            "• bcdboot, bcdedit, bootsect, reagentc, mbr2gpt — oprava bootovania (Microsoft)\n" +
             "• rust-ntfs-recover (0BSD) — inšpirácia pre algoritmus hĺbkového NTFS skenu, autor mjgil-rust\n" +
             "• baize (MIT) — inšpirácia pre trojvrstvový koncept, autor karminski\n" +
             "• Microsoft FAT specification — verejná dokumentácia pre FAT32 parser\n" +

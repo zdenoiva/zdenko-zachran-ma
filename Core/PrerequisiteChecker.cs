@@ -122,7 +122,11 @@ public static class PrerequisiteChecker
             ("takeown.exe", "obnovenie vlastníka"),
             ("icacls.exe", "obnovenie ACL"),
             ("shutdown.exe", "reštart po oprave"),
-            ("cmd.exe", "spúšťanie nástrojov")
+            ("cmd.exe", "spúšťanie nástrojov"),
+            ("bcdboot.exe", "obnova boot súborov"),
+            ("bcdedit.exe", "úprava BCD"),
+            ("bootsect.exe", "oprava MBR/VBR"),
+            ("reagentc.exe", "Windows RE")
         };
         var missingTools = tools.Where(t => !File.Exists(SystemExe(t.Item1))).Select(t => t.Item1).ToArray();
         items.Add(new PrerequisiteItem
@@ -137,7 +141,20 @@ public static class PrerequisiteChecker
             CanFix = missingTools.Length > 0
         });
 
-        // 6. S.M.A.R.T. (voliteľné)
+        // 6. Konverzia MBR -> GPT (voliteľné)
+        var mbr2gpt = File.Exists(SystemExe("mbr2gpt.exe"));
+        items.Add(new PrerequisiteItem
+        {
+            Key = "mbr2gpt",
+            Title = "Konverzia MBR → GPT",
+            Detail = mbr2gpt
+                ? "mbr2gpt.exe je dostupný."
+                : "mbr2gpt.exe chýba; konverzia MBR → GPT nebude dostupná.",
+            Required = false,
+            Ok = mbr2gpt
+        });
+
+        // 7. S.M.A.R.T. (voliteľné)
         var smartOk = storageOk;
         var smartDetail = storageOk
             ? "Dostupné cez Windows Storage (pri USB mostíkoch môže byť obmedzené)."

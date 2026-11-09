@@ -179,9 +179,12 @@ internal static class Program
                 form.Show();
                 if (args.Any(a => a.Equals("--diagtab", StringComparison.OrdinalIgnoreCase)))
                     form.SelectTabForTest(1);
+                if (args.Any(a => a.Equals("--boottab", StringComparison.OrdinalIgnoreCase)))
+                    form.SelectTabForTest(2);
                 if (args.Any(a => a.Equals("--updatebanner", StringComparison.OrdinalIgnoreCase)))
                     form.ShowUpdateBannerForTest("9.9");
-                for (int i = 0; i < 40; i++)
+                var loops = args.Any(a => a.Equals("--boottab", StringComparison.OrdinalIgnoreCase)) ? 140 : 40;
+                for (int i = 0; i < loops; i++)
                 {
                     Application.DoEvents();
                     Thread.Sleep(50);
@@ -227,6 +230,45 @@ internal static class Program
             catch (Exception ex)
             {
                 File.WriteAllText(path + ".error.txt", ex.ToString());
+                return 1;
+            }
+        }
+
+        if (args.Any(a => a.Equals("--bootcheck", StringComparison.OrdinalIgnoreCase)))
+        {
+            var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-bootcheck.log");
+            try
+            {
+                char letter = 'D';
+                var letterArg = args.SkipWhile(a => !a.Equals("--bootcheck", StringComparison.OrdinalIgnoreCase)).Skip(1).FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(letterArg) && char.IsLetter(letterArg[0]))
+                    letter = char.ToUpperInvariant(letterArg[0]);
+
+                var parts = DiskCatalog.LoadAllAsync(CancellationToken.None).GetAwaiter().GetResult();
+                var p = parts.FirstOrDefault(x => !x.IsImage && x.HasLetter && x.Letter == letter) ??
+                        parts.FirstOrDefault(x => !x.IsImage && x.IsSystem);
+                if (p is null)
+                {
+                    File.WriteAllText(logPath, "BOOTCHECK FAIL: partícia sa nenašla");
+                    return 3;
+                }
+
+                var lines = new List<string>();
+                var a = BootAnalysisService.AnalyzeDiskAsync(p, parts, lines.Add, null,
+                    CancellationToken.None).GetAwaiter().GetResult();
+                lines.Add($"Disk={a.Target.DiskNumber} style={a.Target.PartitionStyle} firmware={a.Firmware} " +
+                          $"bootMode={a.BootMode} system={a.Target.DiskIsSystem} canRepair={a.CanRepair} " +
+                          $"canConvert={a.CanConvert} windows={a.WindowsPartitions.Count} " +
+                          $"esp={a.Esp?.PartitionNumber} active={a.ActivePartition?.PartitionNumber} " +
+                          $"summary={a.Summary}");
+                foreach (var c in a.Checks)
+                    lines.Add($"[{c.Level}] {c.Name}: {c.Detail}");
+                File.WriteAllLines(logPath, lines);
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(logPath, "BOOTCHECK FAIL: " + ex);
                 return 1;
             }
         }

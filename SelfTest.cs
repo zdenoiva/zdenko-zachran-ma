@@ -24,6 +24,7 @@ internal static class SelfTest
         TestSmartText();
         TestSystemFileDetection();
         TestUpdates();
+        TestBootParsing();
         TestImageCopy();
 
         var path = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-selftest.log");
@@ -333,6 +334,42 @@ internal static class SelfTest
         Check(info is { Available: true }, "aktualizácia: JSON sa parsuje");
         Check(info?.Changelog == "prvá\ndruhá", "aktualizácia: changelog sa načíta");
         Check(info?.PortableUrl == "https://example/exe", "aktualizácia: odkaz na exe");
+    }
+
+    private static void TestBootParsing()
+    {
+        var mbr = new byte[512];
+        mbr[0] = 0x33;
+        mbr[0x1BE] = 0x80;
+        mbr[0x1CE + 4] = 0x07;
+        mbr[510] = 0x55;
+        mbr[511] = 0xAA;
+        Check(BootAnalysisService.IsMbrValid(mbr), "boot: platný MBR podpis");
+        Check(BootAnalysisService.CountActivePartitions(mbr) == 1, "boot: jedna active partícia");
+
+        var bad = (byte[])mbr.Clone();
+        bad[510] = 0;
+        bad[511] = 0;
+        Check(!BootAnalysisService.IsMbrValid(bad), "boot: neplatný MBR podpis");
+
+        var vbr = new byte[512];
+        vbr[3] = (byte)'N'; vbr[4] = (byte)'T'; vbr[5] = (byte)'F'; vbr[6] = (byte)'S';
+        vbr[510] = 0x55; vbr[511] = 0xAA;
+        Check(BootAnalysisService.IsVbrValid(vbr), "boot: platný NTFS VBR");
+
+        Check(!BootAnalysisService.IsFirmwareMismatch(true, FirmwareMode.Uefi),
+            "boot: GPT + UEFI je kompatibilné");
+        Check(!BootAnalysisService.IsFirmwareMismatch(false, FirmwareMode.Bios),
+            "boot: MBR + BIOS je kompatibilné");
+        Check(BootAnalysisService.IsFirmwareMismatch(false, FirmwareMode.Uefi),
+            "boot: MBR na UEFI je mismatch");
+        Check(BootAnalysisService.IsFirmwareMismatch(true, FirmwareMode.Bios),
+            "boot: GPT na BIOS je mismatch");
+
+        Check(BootRepairService.ExtractGuid(
+                "The entry {12345678-1234-1234-1234-123456789abc} was successfully created.") ==
+              "{12345678-1234-1234-1234-123456789abc}",
+            "boot: GUID recovery záznamu sa parsuje");
     }
 
     private static void TestImageCopy()

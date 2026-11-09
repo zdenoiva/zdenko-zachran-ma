@@ -5,22 +5,31 @@ namespace NtfsRescue.Core;
 
 public static class DiskCatalog
 {
-    public static async Task<List<DiskPartition>> LoadAsync(CancellationToken ct)
+    public static Task<List<DiskPartition>> LoadAsync(CancellationToken ct)
+        => LoadCoreAsync(ct, includeHidden: false);
+
+    /// <summary>Vrátane systémových, recovery a skrytých partícií (pre boot analýzu).</summary>
+    public static Task<List<DiskPartition>> LoadAllAsync(CancellationToken ct)
+        => LoadCoreAsync(ct, includeHidden: true);
+
+    private static async Task<List<DiskPartition>> LoadCoreAsync(CancellationToken ct, bool includeHidden)
     {
         var result = new List<DiskPartition>();
 
         var diskDoc = await Ps.RunJsonAsync(
-            "Get-Disk -ErrorAction SilentlyContinue | Select-Object Number,FriendlyName,SerialNumber,Size,BusType,PartitionStyle,LogicalSectorSize | ConvertTo-Json -Compress",
+            "Get-Disk -ErrorAction SilentlyContinue | Select-Object Number,FriendlyName,SerialNumber,Size,BusType,PartitionStyle,LogicalSectorSize,Signature,Guid,IsBoot,IsSystem,IsOffline,IsReadOnly | ConvertTo-Json -Compress",
             ct, 30000).ConfigureAwait(false);
 
         var partDoc = await Ps.RunJsonAsync(
-            "Get-Partition -ErrorAction SilentlyContinue | Select-Object DiskNumber,PartitionNumber,DriveLetter,Offset,Size,Type,GptType | ConvertTo-Json -Compress",
+            "Get-Partition -ErrorAction SilentlyContinue | Select-Object DiskNumber,PartitionNumber,DriveLetter,Offset,Size,Type,GptType,MbrType,IsActive,IsHidden,IsOffline,IsReadOnly | ConvertTo-Json -Compress",
             ct, 30000).ConfigureAwait(false);
 
         if (diskDoc is null || partDoc is null)
             return await FallbackByVolumesAsync(ct).ConfigureAwait(false);
 
-        var disks = new Dictionary<int, (string Model, string Serial, long Size, int Sector)>();
+        var disks = new Dictionary<int, (string Model, string Serial, long Size, int Sector,
+            string Style, string Guid, string Signature, bool IsBoot, bool IsSystem,
+            bool IsOffline, bool IsReadOnly, string BusType)>();
         foreach (var d in Ps.Objects(diskDoc))
         {
             int number = Ps.Int(d, "Number");
@@ -28,7 +37,10 @@ public static class DiskCatalog
             int sector = Ps.Int(d, "LogicalSectorSize");
             if (sector is not (512 or 1024 or 2048 or 4096)) sector = 512;
             disks[number] = (Ps.Str(d, "FriendlyName"), Ps.Str(d, "SerialNumber"),
-                Ps.Long(d, "Size"), sector);
+                Ps.Long(d, "Size"), sector, Ps.Str(d, "PartitionStyle"),
+                Ps.Str(d, "Guid"), Ps.Str(d, "Signature"), Ps.Bool(d, "IsBoot"),
+                Ps.Bool(d, "IsSystem"), Ps.Bool(d, "IsOffline"), Ps.Bool(d, "IsReadOnly"),
+                Ps.Str(d, "BusType"));
         }
 
         var byDisk = new Dictionary<int, List<DiskPartition>>();
@@ -41,7 +53,7 @@ public static class DiskCatalog
             if (diskNumber < 0 || partNumber <= 0 || size <= 0) continue;
 
             if (!disks.TryGetValue(diskNumber, out var disk))
-                disk = ("", "", 0, 512);
+                disk = ("", "", 0, 512, "", "", "", false, false, false, false, "");
 
             var dp = new DiskPartition
             {
@@ -54,14 +66,29 @@ public static class DiskCatalog
                 Model = disk.Model,
                 Serial = disk.Serial,
                 PartitionType = Ps.Str(p, "Type"),
+                GptType = Ps.Str(p, "GptType"),
+                MbrType = Ps.Str(p, "MbrType"),
                 DriveLetter = NormalizeLetter(Ps.Str(p, "DriveLetter")),
-                IsGpt = !string.IsNullOrWhiteSpace(Ps.Str(p, "GptType"))
+                IsGpt = !string.IsNullOrWhiteSpace(Ps.Str(p, "GptType")),
+                IsActive = Ps.Bool(p, "IsActive"),
+                IsHidden = Ps.Bool(p, "IsHidden"),
+                IsOffline = Ps.Bool(p, "IsOffline"),
+                IsReadOnly = Ps.Bool(p, "IsReadOnly"),
+                PartitionStyle = disk.Style,
+                DiskGuid = disk.Guid,
+                DiskSignature = disk.Signature,
+                DiskIsBoot = disk.IsBoot,
+                DiskIsSystem = disk.IsSystem,
+                DiskIsOffline = disk.IsOffline,
+                DiskIsReadOnly = disk.IsReadOnly,
+                BusType = disk.BusType
             };
 
             var type = dp.PartitionType;
-            if (type.Contains("Reserved", StringComparison.OrdinalIgnoreCase) ||
-                type.Contains("Recovery", StringComparison.OrdinalIgnoreCase) ||
-                type.Contains("System", StringComparison.OrdinalIgnoreCase))
+            if (!includeHidden &&
+                (type.Contains("Reserved", StringComparison.OrdinalIgnoreCase) ||
+                 type.Contains("Recovery", StringComparison.OrdinalIgnoreCase) ||
+                 type.Contains("System", StringComparison.OrdinalIgnoreCase)))
             {
                 // Systémové/recovery partície nezobrazujeme v bežnom zozname.
                 continue;
