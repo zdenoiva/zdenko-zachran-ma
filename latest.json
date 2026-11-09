@@ -1,7 +1,7 @@
 {
   "version": "2.5",
   "tag": "v2.5",
-  "publishedAt": "2026-11-09T09:07:52Z",
+  "publishedAt": "2026-11-09T09:11:26Z",
   "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
   "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.5/ZachranaDisku.exe",
   "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.5/ZachranaDisku-Setup-2.5.exe",
@@ -10,6 +10,8 @@
   "size": 52299308,
   "installerSize": 47252889,
   "changelog": [
+    "Prenosný súbor premenovaný na `ZachranaDisku.exe`; názov aplikácie zostáva „Zdenko, zachráň ma!“.",
+    "Inštalátor má názov `ZachranaDisku-Setup-2.5.exe`.",
     "Pridaná kontrola novšej verzie pri spustení aplikácie.",
     "Nová stránka na stiahnutie na GitHub Pages.",
     "Prenosná verzia a inštalátor sa vydávajú cez GitHub Releases.",

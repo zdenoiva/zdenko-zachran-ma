@@ -2,6 +2,8 @@
 
 ## [2.5] - 2026-11-09
 
+- Prenosný súbor premenovaný na `ZachranaDisku.exe`; názov aplikácie zostáva „Zdenko, zachráň ma!“.
+- Inštalátor má názov `ZachranaDisku-Setup-2.5.exe`.
 - Pridaná kontrola novšej verzie pri spustení aplikácie.
 - Nová stránka na stiahnutie na GitHub Pages.
 - Prenosná verzia a inštalátor sa vydávajú cez GitHub Releases.
