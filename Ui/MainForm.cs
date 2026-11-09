@@ -27,6 +27,8 @@ public sealed class MainForm : Form
     private readonly DiskPanel _disk = new();
     private readonly SurfacePanel _surface = new();
     private SplitContainer? _diagSplit;
+    private TabPage _recoveryTab = null!;
+    private TabPage _repairTab = null!;
 
     private readonly Button _btnDiagnose = new();
     private readonly Button _btnSaveDiag = new();
@@ -509,13 +511,13 @@ public sealed class MainForm : Form
         _tabs.TabPages.Add(BuildSurfaceTab());
         _tabs.TabPages.Add(BuildRepairTab());
 
-        var recoveryTab = new TabPage("Záchrana súborov")
+        _recoveryTab = new TabPage("Záchrana súborov")
         {
             BackColor = Theme.Background,
             Padding = new Padding(0)
         };
-        recoveryTab.Controls.Add(_recovery);
-        _tabs.TabPages.Add(recoveryTab);
+        _recoveryTab.Controls.Add(_recovery);
+        _tabs.TabPages.Add(_recoveryTab);
 
         _tabs.TabPages.Add(BuildAboutTab());
         _tabs.TabPages.Add(BuildLogTab());
@@ -747,6 +749,7 @@ public sealed class MainForm : Form
     private TabPage BuildRepairTab()
     {
         var page = new TabPage("Oprava") { BackColor = Theme.Background, Padding = new Padding(0) };
+        _repairTab = page;
 
         var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3 };
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -1140,7 +1143,7 @@ public sealed class MainForm : Form
     private async Task StartRecoveryAsync(DiskPartition partition, bool deep,
         FileSystemKind? forcedFileSystem = null)
     {
-        if (!CloseRecoveryForOperation()) return;
+        if (!await CloseRecoveryForOperationAsync()) return;
 
         IRecoverySource? source = null;
         RawDisk? disk = null;
@@ -1235,7 +1238,7 @@ public sealed class MainForm : Form
             }
 
             _recovery.SetSource(source, partition.Display);
-            _tabs.SelectedIndex = 3;
+            _tabs.SelectedTab = _recoveryTab;
             await _recovery.LoadAsync();
         }
         catch (OperationCanceledException)
@@ -1433,7 +1436,7 @@ public sealed class MainForm : Form
     private async Task CreateImageAsync()
     {
         if (_selectedPartition is not { } partition) { NoVolume(); return; }
-        if (!CloseRecoveryForOperation()) return;
+        if (!await CloseRecoveryForOperationAsync()) return;
 
         var mode = MessageBox.Show(
             "Vytvoriť obraz celého disku?\n\n" +
@@ -1618,7 +1621,7 @@ public sealed class MainForm : Form
     private async Task RunDiagnosticsAsync()
     {
         if (_selectedEntry is not { } entry) { NoVolume(); return; }
-        if (!CloseRecoveryForOperation()) return;
+        if (!await CloseRecoveryForOperationAsync()) return;
 
         _diagGrid.Rows.Clear();
         _diagLog.Clear();
@@ -1756,7 +1759,7 @@ public sealed class MainForm : Form
     private async Task BackupMetadataAsync()
     {
         if (_selectedEntry is not { } entry) { NoVolume(); return; }
-        if (!CloseRecoveryForOperation()) return;
+        if (!await CloseRecoveryForOperationAsync()) return;
 
         await RunBusyAsync("Zálohujem metadáta...", async ct =>
         {
@@ -1789,7 +1792,7 @@ public sealed class MainForm : Form
             AppendRepair($"Záloha metadát hotová: {backup.Folder}");
             Log.Info($"Záloha metadát: {backup.Folder} ({Fmt.Bytes(backup.Bytes)})");
             _statusLabel.Text = $"Záloha metadát hotová: {Fmt.Bytes(backup.Bytes)}";
-            _tabs.SelectedIndex = 2;
+            _tabs.SelectedTab = _repairTab;
         });
     }
 
@@ -1802,7 +1805,7 @@ public sealed class MainForm : Form
                 AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
-        if (!CloseRecoveryForOperation()) return;
+        if (!await CloseRecoveryForOperationAsync()) return;
 
         var message =
             $"Opraviť NTFS na disku {entry.Letter}:?\n\n" +
@@ -1891,7 +1894,7 @@ public sealed class MainForm : Form
     private async Task VerifyAsync()
     {
         if (_selectedEntry is not { } entry) { NoVolume(); return; }
-        if (!CloseRecoveryForOperation()) return;
+        if (!await CloseRecoveryForOperationAsync()) return;
 
         await RunBusyAsync("Overujem...", async ct =>
         {
@@ -1928,7 +1931,7 @@ public sealed class MainForm : Form
             return;
         }
 
-        if (!CloseRecoveryForOperation()) return;
+        if (!await CloseRecoveryForOperationAsync()) return;
 
         using var confirm = new ConfirmForm(
             "Obnova boot sectoru",
@@ -2037,16 +2040,52 @@ public sealed class MainForm : Form
         return true;
     }
 
-    private bool CloseRecoveryForOperation()
+    private async Task<bool> CloseRecoveryForOperationAsync(bool showMessage = true)
     {
+        if (!_recovery.IsBusy)
+        {
+            _recovery.ClearSource();
+            return true;
+        }
+
+        if (_recovery.IsCopying)
+        {
+            if (showMessage)
+                MessageBox.Show(
+                    "V zálohe „Záchrana súborov“ práve prebieha kopírovanie. " +
+                    "Dokončite ho alebo zrušte a skúste znova.",
+                    AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
+        }
+
+        // Načítavanie zoznamu súborov je len čítanie; pri prechode na opravu ho bezpečne zrušíme.
+        _recovery.CancelOperation();
+        for (int i = 0; i < 50 && _recovery.IsBusy; i++)
+            await Task.Delay(100);
         if (_recovery.IsBusy)
         {
-            MessageBox.Show("V zálohe „Záchrana súborov“ práve prebieha operácia. Dokončite ju alebo zrušte a skúste znova.",
-                AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            if (showMessage)
+                MessageBox.Show(
+                    "Načítavanie zoznamu súborov sa nepodarilo zastaviť. Skúste znova o chvíľu.",
+                    AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return false;
         }
         _recovery.ClearSource();
         return true;
+    }
+
+    /// <summary>Testovací vstup: načíta zdroj v zálohe a hneď ho zruší cez prechod na opravu.</summary>
+    public async Task<string> TestRecoveryCancelAsync(IRecoverySource source)
+    {
+        _recovery.SetSource(source);
+        var load = _recovery.LoadAsync();
+        await Task.Delay(200);
+        bool wasBusy = _recovery.IsBusy;
+        bool copying = _recovery.IsCopying;
+        bool closed = await CloseRecoveryForOperationAsync(showMessage: false);
+        try { await load; } catch { }
+        return $"wasBusy={wasBusy} copying={copying} closed={closed} " +
+               $"busyAfter={_recovery.IsBusy}";
     }
 
     private static bool IsSystemVolume(char letter)

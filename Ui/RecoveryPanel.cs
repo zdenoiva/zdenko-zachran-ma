@@ -24,8 +24,15 @@ public sealed class RecoveryPanel : UserControl
     private List<RecoveryEntry> _filteredEntries = new();
     private CancellationTokenSource? _cts;
     private bool _updatingCheck;
+    private bool _copying;
 
     public bool IsBusy => _cts is not null;
+    public bool IsCopying => _copying;
+
+    public void CancelOperation()
+    {
+        try { _cts?.Cancel(); } catch { }
+    }
 
     public event Action<bool>? BusyChanged;
 
@@ -477,6 +484,7 @@ public sealed class RecoveryPanel : UserControl
             "Potvrdenie záchrany", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
         if (confirm != DialogResult.OK) return;
 
+        _copying = true;
         _cts = new CancellationTokenSource();
         SetBusy(true, "Zachraňujem...");
         _progress.Style = ProgressBarStyle.Continuous;
@@ -543,6 +551,7 @@ public sealed class RecoveryPanel : UserControl
         }
         finally
         {
+            _copying = false;
             SetBusy(false, null);
         }
     }

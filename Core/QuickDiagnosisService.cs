@@ -189,11 +189,28 @@ public static class QuickDiagnosisService
                 return;
             }
 
-            if (dirty == true || fresh?.IsProblem == true)
+            if (dirty == true)
             {
                 report.Severity = DiagnosisSeverity.Warning;
-                report.Title = "NTFS je čitateľné, ale Windows ho blokuje";
-                report.Details = details + "\n\nŠtruktúra sa dá prečítať, takže najprv skopírujte dôležité súbory a potom skúste opravu.";
+                report.Title = "NTFS je čitateľné, ale volume je označený ako dirty";
+                report.Details = details +
+                    "\n\nWindows hlási, že volume potrebuje opravu (dirty bit). " +
+                    "Obsah je stále čitateľný, preto najprv skopírujte dôležité súbory a potom spustite opravu (chkdsk).";
+                report.Actions.Add(RecommendedAction.CopyFiles);
+                report.Actions.Add(RecommendedAction.Repair);
+                report.Actions.Add(RecommendedAction.DeepScan);
+                return;
+            }
+
+            if (fresh?.IsProblem == true)
+            {
+                report.Severity = DiagnosisSeverity.Warning;
+                report.Title = "NTFS je čitateľné, ale Windows hlási problém";
+                var state = string.Join(" / ", new[] { fresh.Health, fresh.Status }
+                    .Where(s => !string.IsNullOrWhiteSpace(s) && s != "Healthy"));
+                report.Details = details +
+                    (string.IsNullOrWhiteSpace(state) ? "" : "\n\nStav Windows: " + state) +
+                    "\n\nNajprv skopírujte dôležité súbory a potom spustite opravu.";
                 report.Actions.Add(RecommendedAction.CopyFiles);
                 report.Actions.Add(RecommendedAction.Repair);
                 report.Actions.Add(RecommendedAction.DeepScan);

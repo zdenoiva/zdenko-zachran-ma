@@ -162,6 +162,71 @@ internal static class Program
             }
         }
 
+        if (args.Any(a => a.Equals("--diagnose", StringComparison.OrdinalIgnoreCase)))
+        {
+            var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-diagnose.log");
+            try
+            {
+                char letter = 'D';
+                var letterArg = args.SkipWhile(a => !a.Equals("--diagnose", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(letterArg) && char.IsLetter(letterArg[0]))
+                    letter = char.ToUpperInvariant(letterArg[0]);
+
+                var parts = DiskCatalog.LoadAsync(CancellationToken.None).GetAwaiter().GetResult();
+                var p = parts.FirstOrDefault(x => !x.IsImage && x.HasLetter && x.Letter == letter);
+                if (p is null)
+                {
+                    File.WriteAllText(logPath, $"DIAGNOSE {letter}: partícia sa nenašla");
+                    return 3;
+                }
+                var report = QuickDiagnosisService.RunAsync(p, CancellationToken.None)
+                    .GetAwaiter().GetResult();
+                var text = new StringBuilder();
+                text.AppendLine($"DIAGNOSE {letter}: {p.Display}");
+                text.AppendLine($"severity={report.Severity} title={report.Title}");
+                text.AppendLine("details=" + report.Details.Replace("\r", "").Replace("\n", " | "));
+                text.AppendLine("actions=" + string.Join(",", report.Actions));
+                File.WriteAllText(logPath, text.ToString());
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(logPath, "DIAGNOSE FAIL: " + ex);
+                return 1;
+            }
+        }
+
+        if (args.Any(a => a.Equals("--recoverycancel", StringComparison.OrdinalIgnoreCase)))
+        {
+            ApplicationConfiguration.Initialize();
+            var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-recoverycancel.log");
+            try
+            {
+                using var form = new MainForm(smoke: true) { ShowInTaskbar = false };
+                form.Show();
+                var task = form.TestRecoveryCancelAsync(new SlowRecoverySource());
+                var deadline = DateTime.UtcNow.AddSeconds(20);
+                while (!task.IsCompleted && DateTime.UtcNow < deadline)
+                {
+                    Application.DoEvents();
+                    Thread.Sleep(20);
+                }
+                var text = task.IsCompleted
+                    ? task.GetAwaiter().GetResult()
+                    : "TIMEOUT (načítanie sa nepodarilo zrušiť včas)";
+                File.WriteAllText(logPath, text);
+                form.Close();
+                return text.Contains("closed=True", StringComparison.Ordinal) &&
+                       text.Contains("busyAfter=False", StringComparison.Ordinal) ? 0 : 1;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(logPath, "RECOVERYCANCEL FAIL: " + ex);
+                return 1;
+            }
+        }
+
         if (args.Any(a => a.Equals("--uishot", StringComparison.OrdinalIgnoreCase)))
         {
             ApplicationConfiguration.Initialize();
@@ -665,5 +730,30 @@ internal static class Program
         {
             return false;
         }
+    }
+
+    /// <summary>Pomalý zdroj pre test zrušenia načítavania v zálohe Záchrana súborov.</summary>
+    private sealed class SlowRecoverySource : IRecoverySource
+    {
+        public string FileSystemName => "TEST";
+        public string SourceName => "testovací zdroj";
+        public int DiskNumber => -1;
+        public long TotalBytes => 0;
+        public List<RecoveryEntry> Entries { get; } = new();
+
+        public void Load(bool includeDeleted, IProgress<ScanProgress>? progress, CancellationToken ct)
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                Thread.Sleep(50);
+                progress?.Report(new ScanProgress(i, 100, "Test"));
+            }
+        }
+
+        public void CopyFile(RecoveryEntry entry, Stream output, Action<long>? progress,
+            CancellationToken ct, Action<string>? warn) => throw new NotSupportedException();
+
+        public void Dispose() { }
     }
 }

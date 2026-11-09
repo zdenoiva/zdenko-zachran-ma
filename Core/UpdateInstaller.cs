@@ -54,18 +54,36 @@ public static class UpdateInstaller
             await UpdateService.DownloadAsync(info.InstallerUrl, setup, info.InstallerSha256,
                 progress, ct).ConfigureAwait(false);
 
-            var psi = new ProcessStartInfo(setup)
+            // Inštalátor sa spustí až po ukončení programu; inak by nemohol prepísať
+            // bežiaci ZachranaDisku.exe a ohlásil by chybu kopírovania.
+            var installScript = Path.Combine(Path.GetTempPath(),
+                $"zzm-install-{Guid.NewGuid():N}.ps1");
+            File.WriteAllText(installScript, InstallHelperScript, new UTF8Encoding(false));
+
+            var installHelper = new ProcessStartInfo(PowerShellPath)
             {
-                UseShellExecute = true,
-                Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS " +
-                            "/RESTARTAPPLICATIONS /AUTOUPDATE"
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden
             };
-            Process.Start(psi);
+            installHelper.ArgumentList.Add("-NoProfile");
+            installHelper.ArgumentList.Add("-ExecutionPolicy");
+            installHelper.ArgumentList.Add("Bypass");
+            installHelper.ArgumentList.Add("-File");
+            installHelper.ArgumentList.Add(installScript);
+            installHelper.ArgumentList.Add("-AppPid");
+            installHelper.ArgumentList.Add(Environment.ProcessId.ToString());
+            installHelper.ArgumentList.Add("-Setup");
+            installHelper.ArgumentList.Add(setup);
+            installHelper.ArgumentList.Add("-WorkDir");
+            installHelper.ArgumentList.Add(Path.GetTempPath());
+
+            Process.Start(installHelper);
             return new UpdateLaunchResult
             {
                 ExitNow = true,
                 Method = mode,
-                Message = "Inštalátor sa spustil. Program sa teraz zavrie a nainštaluje novú verziu."
+                Message = "Inštalátor sa spustí po zavretí programu a nainštaluje novú verziu."
             };
         }
 
@@ -146,6 +164,31 @@ public static class UpdateInstaller
                 "Priečinok s programom nie je zapisovateľný. Skopírujte program do zapisovateľného priečinka.", ex);
         }
     }
+
+    private const string InstallHelperScript = """
+param(
+  [int]$AppPid,
+  [string]$Setup,
+  [string]$WorkDir
+)
+$ErrorActionPreference = 'Stop'
+$log = Join-Path $env:TEMP 'zzm-update-error.log'
+try {
+  $deadline = (Get-Date).AddSeconds(120)
+  while ((Get-Process -Id $AppPid -ErrorAction SilentlyContinue) -and ((Get-Date) -lt $deadline)) {
+    Start-Sleep -Milliseconds 250
+  }
+  Start-Sleep -Milliseconds 500
+  Start-Process -FilePath $Setup -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CLOSEAPPLICATIONS','/RESTARTAPPLICATIONS','/AUTOUPDATE' -WorkingDirectory $WorkDir -Wait
+}
+catch {
+  ("Aktualizácia zlyhala: " + $_.Exception.Message) | Out-File -FilePath $log -Encoding utf8
+}
+finally {
+  Remove-Item -LiteralPath $Setup -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
+}
+""";
 
     private const string HelperScript = """
 param(

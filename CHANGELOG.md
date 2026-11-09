@@ -1,5 +1,20 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.13] - 2026-11-09
+
+- **Aktualizácia nainštalovanej verzie**: inštalátor sa už nespúšťa počas behu programu.
+  Program sa najprv zavrie, pomocný skript počká na jeho ukončenie a až potom spustí
+  tichú inštaláciu. Odstraňuje chybu „Nepodarilo sa nainštalovať …ZachranaDisku.exe“.
+- **Záchrana súborov**: prechod z načítavania súborov na opravu už nehlási falošné
+  „práve prebieha operácia“. Načítavanie sa pri prechode na opravu bezpečne zruší;
+  hláška zostáva len pri skutočnom kopírovaní.
+- Záložka Záchrana súborov sa už nevyberá cez pevný index, ale cez svoju skutočnú
+  záložku (po pridaní záložiek Disk a Povrch sa indexy posunuli).
+- Diagnostika **dirty** NTFS už netvrdí, že Windows disk blokuje. Nové znenie:
+  „NTFS je čitateľné, ale volume je označený ako dirty“ s vysvetlením, že obsah je
+  čitateľný a najprv treba skopírovať súbory a potom spustiť chkdsk.
+- Overené na disku D: (WDC WD5000LPVX, 465,75 GB NTFS, dirty bit).
+
 ## [2.12] - 2026-11-09
 
 - Zarovnané pole **Systém súborov** a **Písmeno** v záložke Disk.
