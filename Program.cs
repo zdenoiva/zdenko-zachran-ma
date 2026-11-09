@@ -273,6 +273,101 @@ internal static class Program
             }
         }
 
+        if (args.Any(a => a.Equals("--bootrepair", StringComparison.OrdinalIgnoreCase)))
+        {
+            var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-bootrepair.log");
+            try
+            {
+                char letter = 'D';
+                var letterArg = args.SkipWhile(a => !a.Equals("--bootrepair", StringComparison.OrdinalIgnoreCase)).Skip(1).FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(letterArg) && char.IsLetter(letterArg[0]))
+                    letter = char.ToUpperInvariant(letterArg[0]);
+                var parts = DiskCatalog.LoadAllAsync(CancellationToken.None).GetAwaiter().GetResult();
+                var p = parts.FirstOrDefault(x => !x.IsImage && x.HasLetter && x.Letter == letter);
+                if (p is null) { File.WriteAllText(logPath, "BOOTREPAIR FAIL: partícia sa nenašla"); return 3; }
+                var lines = new List<string>();
+                var analysis = BootAnalysisService.AnalyzeDiskAsync(p, parts, lines.Add, null,
+                    CancellationToken.None).GetAwaiter().GetResult();
+                var renew = args.Any(a => a.Equals("--renew-signature", StringComparison.OrdinalIgnoreCase));
+                var result = BootRepairService.RepairAsync(analysis, renew, lines.Add, null,
+                    CancellationToken.None).GetAwaiter().GetResult();
+                lines.Add($"Success={result.Success} Backup={result.BackupFolder}");
+                lines.Add(result.Summary);
+                File.WriteAllLines(logPath, lines);
+                return result.Success ? 0 : 1;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(logPath, "BOOTREPAIR FAIL: " + ex);
+                return 1;
+            }
+        }
+
+        if (args.Any(a => a.Equals("--bootconvert", StringComparison.OrdinalIgnoreCase)))
+        {
+            var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-bootconvert.log");
+            try
+            {
+                char letter = 'D';
+                var letterArg = args.SkipWhile(a => !a.Equals("--bootconvert", StringComparison.OrdinalIgnoreCase)).Skip(1).FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(letterArg) && char.IsLetter(letterArg[0]))
+                    letter = char.ToUpperInvariant(letterArg[0]);
+                var parts = DiskCatalog.LoadAllAsync(CancellationToken.None).GetAwaiter().GetResult();
+                var p = parts.FirstOrDefault(x => !x.IsImage && x.HasLetter && x.Letter == letter);
+                if (p is null) { File.WriteAllText(logPath, "BOOTCONVERT FAIL: partícia sa nenašla"); return 3; }
+                var lines = new List<string>();
+                var analysis = BootAnalysisService.AnalyzeDiskAsync(p, parts, lines.Add, null,
+                    CancellationToken.None).GetAwaiter().GetResult();
+                var result = BootRepairService.ConvertMbrToGptAsync(analysis, lines.Add, null,
+                    CancellationToken.None).GetAwaiter().GetResult();
+                lines.Add($"Success={result.Success} Backup={result.BackupFolder}");
+                lines.Add(result.Summary);
+                File.WriteAllLines(logPath, lines);
+                return result.Success ? 0 : 1;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(logPath, "BOOTCONVERT FAIL: " + ex);
+                return 1;
+            }
+        }
+
+        if (args.Any(a => a.Equals("--bootrecovery", StringComparison.OrdinalIgnoreCase)) ||
+            args.Any(a => a.Equals("--bootoem", StringComparison.OrdinalIgnoreCase)))
+        {
+            var oem = args.Any(a => a.Equals("--bootoem", StringComparison.OrdinalIgnoreCase));
+            var switchName = oem ? "--bootoem" : "--bootrecovery";
+            var logPath = Path.Combine(Path.GetTempPath(), oem
+                ? "ZdenkoZachranMa-bootoem.log"
+                : "ZdenkoZachranMa-bootrecovery.log");
+            try
+            {
+                char letter = 'D';
+                var letterArg = args.SkipWhile(a => !a.Equals(switchName, StringComparison.OrdinalIgnoreCase)).Skip(1).FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(letterArg) && char.IsLetter(letterArg[0]))
+                    letter = char.ToUpperInvariant(letterArg[0]);
+                var parts = DiskCatalog.LoadAllAsync(CancellationToken.None).GetAwaiter().GetResult();
+                var p = parts.FirstOrDefault(x => !x.IsImage && x.HasLetter && x.Letter == letter);
+                if (p is null) { File.WriteAllText(logPath, "BOOTRECOVERY FAIL: partícia sa nenašla"); return 3; }
+                var lines = new List<string>();
+                var analysis = BootAnalysisService.AnalyzeDiskAsync(p, parts, lines.Add, null,
+                    CancellationToken.None).GetAwaiter().GetResult();
+                var image = oem ? analysis.OemImage : analysis.WinReImage;
+                if (image is null) { File.WriteAllText(logPath, "BOOTRECOVERY FAIL: obraz sa nenašiel"); return 4; }
+                var result = BootRepairService.AddRecoveryAsync(analysis, image, lines.Add, null,
+                    CancellationToken.None).GetAwaiter().GetResult();
+                lines.Add($"Success={result.Success} Backup={result.BackupFolder} Guid={result.EntryGuid}");
+                lines.Add(result.Summary);
+                File.WriteAllLines(logPath, lines);
+                return result.Success ? 0 : 1;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(logPath, "BOOTRECOVERY FAIL: " + ex);
+                return 1;
+            }
+        }
+
         if (args.Any(a => a.Equals("--uismoke", StringComparison.OrdinalIgnoreCase)))
         {
             ApplicationConfiguration.Initialize();

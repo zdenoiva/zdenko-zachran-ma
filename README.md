@@ -1,6 +1,6 @@
 # Zdenko, zachráň ma!
 
-**Verzia 2.6** · © 2026 **Zdenko Ivančík**
+**Verzia 2.7** · © 2026 **Zdenko Ivančík**
 
 Nekomerčné použitie je povolené. **Komerčné použitie je možné len s výslovným
 súhlasom autora.**
@@ -12,7 +12,7 @@ potvrdenia.
 - GitHub: <https://github.com/zdenoiva/zdenko-zachran-ma>
 - Releases: <https://github.com/zdenoiva/zdenko-zachran-ma/releases>
 - Stránka na stiahnutie: <https://zdenoiva.github.io/zdenko-zachran-ma/>
-- Aktuálna verzia: **2.6**
+- Aktuálna verzia: **2.7**
 
 ## Inštalácia alebo prenosné spustenie
 
@@ -20,7 +20,7 @@ potvrdenia.
   - **jeden súbor**, self-contained, nepotrebuje .NET ani inštaláciu
   - skopírujte ho na iný počítač a spustite
   - všetky potrebné natívne knižnice sa rozbalia dočasne automaticky
-- **Inštalátor:** `dist\ZachranaDisku-Setup-2.6.exe`
+- **Inštalátor:** `dist\ZachranaDisku-Setup-2.7.exe`
   - po spustení ponúkne dve možnosti:
     - **Nainštalovať do počítača** (Program Files, Štart, odinštalovanie cez
       Nastavenia → Aplikácie)
@@ -179,7 +179,7 @@ winget install JRSoftware.InnoSetup
 .\make-installer.ps1
 ```
 
-Výsledok: `dist\ZachranaDisku-Setup-2.6.exe`.
+Výsledok: `dist\ZachranaDisku-Setup-2.7.exe`.
 
 ## Vydanie novej verzie
 
@@ -202,7 +202,7 @@ Potom commitnite a pushnite `latest.json` a `CHANGELOG.md`:
 
 ```powershell
 git add latest.json CHANGELOG.md
-git commit -m "Release v2.6"
+git commit -m "Release v2.7"
 git push
 ```
 
@@ -246,6 +246,7 @@ Licenčné texty tretích strán: `THIRD_PARTY_NOTICES.md`.
 Program pracuje s diskovými zariadeniami a pri oprave zapisuje do metadát.
 Používate ho na vlastné riziko. Pred opravou si vždy skopírujte dôležité dáta.
 Záchrana má zmysel len dovtedy, kým sa prepísané dáta neprepíšu inými.
+
 
 
 

@@ -355,7 +355,7 @@ public static class BootAnalysisService
                 analysis.Target.DiskSize);
             var mbr = disk.ReadBytes(0, 512);
             analysis.MbrSignatureValid = IsMbrValid(mbr);
-            analysis.MbrBootCodePresent = mbr.Length >= 446 && mbr.Take(446).Any(b => b != 0);
+            analysis.MbrBootCodePresent = HasMbrBootCode(mbr);
             analysis.MbrActiveCount = CountActivePartitions(mbr);
 
             if (!analysis.Target.IsGpt)
@@ -493,6 +493,9 @@ public static class BootAnalysisService
 
     internal static bool IsMbrValid(byte[] mbr)
         => mbr.Length >= 512 && mbr[510] == 0x55 && mbr[511] == 0xAA;
+
+    internal static bool HasMbrBootCode(byte[] mbr)
+        => mbr.Length >= 440 && mbr.Take(440).Any(b => b != 0);
 
     internal static bool IsVbrValid(byte[] vbr)
         => vbr.Length >= 512 && vbr[510] == 0x55 && vbr[511] == 0xAA;

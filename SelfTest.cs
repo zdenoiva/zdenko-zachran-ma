@@ -346,6 +346,14 @@ internal static class SelfTest
         mbr[511] = 0xAA;
         Check(BootAnalysisService.IsMbrValid(mbr), "boot: platný MBR podpis");
         Check(BootAnalysisService.CountActivePartitions(mbr) == 1, "boot: jedna active partícia");
+        Check(BootAnalysisService.HasMbrBootCode(mbr), "boot: MBR boot code sa rozpozná");
+
+        var onlySignature = new byte[512];
+        onlySignature[440] = 0x9E; onlySignature[441] = 0xF9;
+        onlySignature[442] = 0xF2; onlySignature[443] = 0xDC;
+        onlySignature[510] = 0x55; onlySignature[511] = 0xAA;
+        Check(!BootAnalysisService.HasMbrBootCode(onlySignature),
+            "boot: samotná disk signature nie je boot code");
 
         var bad = (byte[])mbr.Clone();
         bad[510] = 0;

@@ -226,23 +226,29 @@ public static class BootRepairService
 
             var bcdedit = SysExe("bcdedit.exe");
             var ramdisk = "{ramdiskoptions}";
-            var exists = await RunAsync(bcdedit, new[] { "/store", bcdPath, "/enum", ramdisk },
+            // {ramdiskoptions} nemusí existovať. Vytvoríme ho idempotentne a vždy
+            // nastavíme cestu k boot.sdi, aby nový záznam neodkazoval na prázdny objekt.
+            var create = await RunAsync(bcdedit,
+                new[] { "/store", bcdPath, "/create", ramdisk, "/d", "Ramdisk Options" },
                 log, ct, throwOnError: false).ConfigureAwait(false);
-            if (exists.ExitCode != 0)
-            {
-                await RunAsync(bcdedit, new[] { "/store", bcdPath, "/create", ramdisk, "/d", "Ramdisk Options" },
-                    log, ct).ConfigureAwait(false);
-                await RunAsync(bcdedit,
-                    new[] { "/store", bcdPath, "/set", ramdisk, "ramdisksdidevice", $"partition={winLetter}:" },
-                    log, ct).ConfigureAwait(false);
-                await RunAsync(bcdedit,
-                    new[] { "/store", bcdPath, "/set", ramdisk, "ramdisksdipath", sdiRelative },
-                    log, ct).ConfigureAwait(false);
-            }
-            else
-            {
-                log("Používam existujúce {ramdiskoptions}.");
-            }
+            if (create.ExitCode != 0 &&
+                !create.Output.Contains("already exists", StringComparison.OrdinalIgnoreCase) &&
+                !create.Output.Contains("už existuje", StringComparison.OrdinalIgnoreCase))
+                log("Ramdisk options: " + create.Output.Trim());
+
+            await RunAsync(bcdedit,
+                new[] { "/store", bcdPath, "/set", ramdisk, "ramdisksdidevice", $"partition={winLetter}:" },
+                log, ct).ConfigureAwait(false);
+            await RunAsync(bcdedit,
+                new[] { "/store", bcdPath, "/set", ramdisk, "ramdisksdipath", sdiRelative },
+                log, ct).ConfigureAwait(false);
+
+            var optionsCheck = await RunAsync(bcdedit,
+                new[] { "/store", bcdPath, "/enum", ramdisk },
+                log, ct, throwOnError: false).ConfigureAwait(false);
+            if (optionsCheck.ExitCode != 0 ||
+                !optionsCheck.Output.Contains("ramdisksdi", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Ramdisk options sa nepodarilo nastaviť.");
 
             var title = image.IsWindowsRe
                 ? "Windows RE"

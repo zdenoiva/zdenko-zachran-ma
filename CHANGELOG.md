@@ -1,5 +1,17 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.7] - 2026-11-09
+
+- Opravené rozpoznávanie MBR boot code: disk signature sa už nepovažuje za boot kód.
+- Opravené vytvorenie `{ramdiskoptions}` pri pridávaní Windows RE / OEM recovery.
+- Testované na klonovanom disku:
+  - odstránený `bootmgr` a BCD → BIOS oprava ich obnovila
+  - vynulovaný MBR boot code → `bootsect` ho obnovil
+  - odstránené UEFI `bootmgfw.efi` a BCD → UEFI oprava ich obnovila
+  - MBR → GPT konverzia cez `mbr2gpt` prešla
+  - OEM recovery záznam sa pridal do BCD
+- Oprava aktuálneho systémového disku je naďalej zablokovaná.
+
 ## [2.6] - 2026-11-09
 
 - Nová záložka **Boot** na kontrolu a opravu bootovania Windows.
