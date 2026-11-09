@@ -1,5 +1,5 @@
 #define MyAppName "Zdenko, zachráň ma!"
-#define MyAppVersion "2.8"
+#define MyAppVersion "2.9"
 #define MyAppPublisher "Zdenko Ivančík"
 #define MyAppExeName "ZachranaDisku.exe"
 #define MyAppId "{{80516B42-DD69-4D58-A61B-6C0C881B6894}"
@@ -31,7 +31,7 @@ SetupLogging=yes
 CloseApplications=yes
 RestartApplications=no
 AllowNoIcons=yes
-VersionInfoVersion=2.8.0.0
+VersionInfoVersion=2.9.0.0
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 VersionInfoCompany={#MyAppPublisher}
@@ -56,7 +56,7 @@ Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: shellexec nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: files; Name: "{app}\{#MyAppExeName}"
@@ -186,6 +186,7 @@ begin
     end;
   end;
 end;
+
 
 
 

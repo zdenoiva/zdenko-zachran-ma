@@ -1,5 +1,13 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.9] - 2026-11-09
+
+- Opravené spustenie programu po dokončení inštalácie.
+- Inštalátor teraz spúšťa `ZachranaDisku.exe` cez `ShellExecute`, takže
+  aplikácia sa správne spustí s administrátorskými právami.
+- Opravená chyba `CreateProcess zlyhala; kód 740` na poslednej obrazovke
+  inštalátora.
+
 ## [2.8] - 2026-11-09
 
 - Oznam o novej verzii má vyšší riadok a plne viditeľné tlačidlo X.
