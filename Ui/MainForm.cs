@@ -50,6 +50,10 @@ public sealed class MainForm : Form
     private readonly Panel _updateBanner = new();
     private readonly Label _updateLabel = new();
     private readonly LinkLabel _updateLink = new();
+    private readonly ProgressBar _updateProgress = new();
+    private readonly Label _updatePercent = new();
+    private UpdateInfo? _updateInfo;
+    private bool _updating;
 
     private readonly List<Control> _busyControls = new();
 
@@ -274,9 +278,10 @@ public sealed class MainForm : Form
     private Control BuildUpdateBanner()
     {
         _updateBanner.Dock = DockStyle.Fill;
-        _updateBanner.AutoSize = true;
+        _updateBanner.AutoSize = false;
+        _updateBanner.Height = 52;
         _updateBanner.BackColor = Theme.WarningSoft;
-        _updateBanner.Padding = new Padding(18, 7, 18, 7);
+        _updateBanner.Padding = new Padding(18, 6, 12, 6);
         _updateBanner.Visible = false;
         _updateBanner.Paint += (_, e) =>
         {
@@ -285,59 +290,87 @@ public sealed class MainForm : Form
                 _updateBanner.Width, _updateBanner.Height - 1);
         };
 
-        var flow = new FlowLayoutPanel
+        var grid = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            AutoSize = true,
-            WrapContents = false,
+            ColumnCount = 6,
+            RowCount = 1,
             BackColor = Color.Transparent,
             Margin = new Padding(0)
         };
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 24));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34));
 
-        flow.Controls.Add(new Label
+        grid.Controls.Add(new Label
         {
             Text = "↑",
-            Font = new Font("Segoe UI Semibold", 13f),
+            Font = new Font("Segoe UI Semibold", 14f),
             ForeColor = Theme.Warning,
-            AutoSize = true,
-            Margin = new Padding(0, 0, 8, 0)
-        });
+            AutoSize = false,
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft
+        }, 0, 0);
 
-        _updateLabel.AutoSize = true;
+        _updateLabel.AutoSize = false;
+        _updateLabel.Dock = DockStyle.Fill;
+        _updateLabel.TextAlign = ContentAlignment.MiddleLeft;
+        _updateLabel.AutoEllipsis = true;
         _updateLabel.Font = new Font("Segoe UI Semibold", 9.5f);
         _updateLabel.ForeColor = Color.FromArgb(125, 80, 0);
-        _updateLabel.Margin = new Padding(0, 5, 8, 0);
-        flow.Controls.Add(_updateLabel);
+        _updateLabel.Margin = new Padding(0, 0, 8, 0);
+        grid.Controls.Add(_updateLabel, 1, 0);
 
-        _updateLink.Text = "Stiahnuť aktualizáciu";
-        _updateLink.AutoSize = true;
+        _updateProgress.Dock = DockStyle.Fill;
+        _updateProgress.Height = 10;
+        _updateProgress.Minimum = 0;
+        _updateProgress.Maximum = 100;
+        _updateProgress.Style = ProgressBarStyle.Continuous;
+        _updateProgress.Margin = new Padding(6, 15, 4, 14);
+        _updateProgress.Visible = false;
+        grid.Controls.Add(_updateProgress, 2, 0);
+
+        _updatePercent.AutoSize = false;
+        _updatePercent.Dock = DockStyle.Fill;
+        _updatePercent.TextAlign = ContentAlignment.MiddleRight;
+        _updatePercent.Font = new Font("Segoe UI Semibold", 8.5f);
+        _updatePercent.ForeColor = Color.FromArgb(125, 80, 0);
+        _updatePercent.Visible = false;
+        grid.Controls.Add(_updatePercent, 3, 0);
+
+        _updateLink.Text = "Aktualizovať";
+        _updateLink.AutoSize = false;
+        _updateLink.Dock = DockStyle.Fill;
+        _updateLink.TextAlign = ContentAlignment.MiddleLeft;
         _updateLink.Font = new Font("Segoe UI Semibold", 9.5f);
         _updateLink.LinkColor = Theme.AccentDark;
         _updateLink.ActiveLinkColor = Theme.Accent;
         _updateLink.LinkBehavior = LinkBehavior.AlwaysUnderline;
-        _updateLink.Margin = new Padding(0, 5, 12, 0);
-        _updateLink.LinkClicked += (_, _) => OpenUpdatePage();
-        flow.Controls.Add(_updateLink);
+        _updateLink.Margin = new Padding(0);
+        _updateLink.LinkClicked += async (_, _) => await StartUpdateAsync();
+        grid.Controls.Add(_updateLink, 4, 0);
 
         var close = new Button
         {
             Text = "×",
             FlatStyle = FlatStyle.Flat,
-            AutoSize = false,
-            Size = new Size(24, 24),
+            Dock = DockStyle.Fill,
             BackColor = Color.Transparent,
             ForeColor = Theme.Muted,
-            Font = new Font("Segoe UI", 11f),
+            Font = new Font("Segoe UI", 13f),
             Cursor = Cursors.Hand,
             TabStop = false,
-            Margin = new Padding(0, 0, 0, 0)
+            Margin = new Padding(2, 2, 0, 2)
         };
         close.FlatAppearance.BorderSize = 0;
-        close.FlatAppearance.MouseOverBackColor = Theme.WarningSoft;
+        close.FlatAppearance.MouseOverBackColor = Color.FromArgb(250, 232, 190);
         close.Click += (_, _) => _updateBanner.Visible = false;
-        flow.Controls.Add(close);
+        grid.Controls.Add(close, 5, 0);
 
-        _updateBanner.Controls.Add(flow);
+        _updateBanner.Controls.Add(grid);
         return _updateBanner;
     }
 
@@ -348,16 +381,75 @@ public sealed class MainForm : Form
             var info = await UpdateService.CheckAsync();
             if (info is null || !info.Available || IsDisposed) return;
 
+            _updateInfo = info;
             _updateLabel.Text = $"Dostupná novšia verzia {info.Version}.";
+            _updateLabel.ForeColor = Color.FromArgb(125, 80, 0);
             _updateLink.Tag = string.IsNullOrWhiteSpace(info.PageUrl)
                 ? UpdateService.PageUrl
                 : info.PageUrl;
+            _updateLink.Enabled = true;
+            _updateLink.Text = "Aktualizovať";
+            _updateProgress.Visible = false;
+            _updatePercent.Visible = false;
             _updateBanner.Visible = true;
             Log.Info($"Dostupná novšia verzia {info.Version}; aktuálna je {AppInfo.VersionDisplay}.");
         }
         catch (Exception ex)
         {
             Log.Warn("Kontrola aktualizácií zlyhala: " + ex.Message);
+        }
+    }
+
+    private async Task StartUpdateAsync()
+    {
+        if (_updating || _updateInfo is null) return;
+
+        if (UpdateInstaller.DetectMode() == UpdateMethod.Unsupported)
+        {
+            OpenUpdatePage();
+            return;
+        }
+
+        _updating = true;
+        _updateLink.Enabled = false;
+        _updateLink.Text = "Sťahujem…";
+        _updateProgress.Visible = true;
+        _updatePercent.Visible = true;
+        _updateProgress.Value = 0;
+        _updatePercent.Text = "0 %";
+        _updateLabel.ForeColor = Color.FromArgb(125, 80, 0);
+        _updateLabel.Text = $"Sťahujem verziu {_updateInfo.Version}…";
+
+        var progress = new Progress<double>(value =>
+        {
+            var percent = (int)Math.Round(Math.Clamp(value, 0, 1) * 100);
+            _updateProgress.Value = Math.Clamp(percent, 0, 100);
+            _updatePercent.Text = percent + " %";
+        });
+
+        try
+        {
+            var result = await UpdateInstaller.ApplyAsync(_updateInfo, progress, CancellationToken.None);
+            _updateProgress.Value = 100;
+            _updatePercent.Text = "100 %";
+            _updateLabel.Text = result.Message;
+            _updateLink.Text = "Spúšťam…";
+            Log.Info("Aktualizácia: " + result.Message);
+            await Task.Delay(600);
+
+            if (result.ExitNow)
+                Application.Exit();
+        }
+        catch (Exception ex)
+        {
+            _updating = false;
+            _updateLink.Enabled = true;
+            _updateLink.Text = "Skúsiť znova";
+            _updateProgress.Visible = false;
+            _updatePercent.Visible = false;
+            _updateLabel.ForeColor = Theme.Danger;
+            _updateLabel.Text = "Aktualizácia zlyhala: " + ex.Message;
+            Log.Error("Aktualizácia zlyhala: " + ex);
         }
     }
 

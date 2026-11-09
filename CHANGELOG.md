@@ -1,5 +1,14 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.8] - 2026-11-09
+
+- Oznam o novej verzii má vyšší riadok a plne viditeľné tlačidlo X.
+- Tlačidlo **Aktualizovať** priamo stiahne novú verziu s overením SHA256.
+- **Inštalovaná verzia:** stiahne sa inštalátor, program sa zavrie, tiho sa nainštaluje a spustí sa nová verzia.
+- **Prenosná verzia:** stiahne sa nový EXE, po zavretí programu sa prepíše pôvodný súbor a spustí sa nová verzia.
+- Pri sťahovaní je v lište viditeľný priebeh v percentách.
+- Inštalátor podporuje tichú auto-aktualizáciu cez `/AUTOUPDATE`.
+
 ## [2.7] - 2026-11-09
 
 - Opravené rozpoznávanie MBR boot code: disk signature sa už nepovažuje za boot kód.

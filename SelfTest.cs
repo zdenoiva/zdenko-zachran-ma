@@ -378,6 +378,13 @@ internal static class SelfTest
                 "The entry {12345678-1234-1234-1234-123456789abc} was successfully created.") ==
               "{12345678-1234-1234-1234-123456789abc}",
             "boot: GUID recovery záznamu sa parsuje");
+
+        Check(UpdateInstaller.DetectMode(@"C:\Program Files\ZachranaDisku\ZachranaDisku.exe") ==
+              UpdateMethod.Installed, "update: Program Files = inštalovaná");
+        Check(UpdateInstaller.DetectMode(@"C:\Users\zdeno\Desktop\ZachranaDisku.exe") ==
+              UpdateMethod.Portable, "update: Desktop = prenosná");
+        Check(UpdateInstaller.DetectMode(@"C:\Program Files\dotnet\dotnet.exe") ==
+              UpdateMethod.Unsupported, "update: dotnet = nepodporované");
     }
 
     private static void TestImageCopy()

@@ -1,23 +1,20 @@
 {
-  "version": "2.7",
-  "tag": "v2.7",
-  "publishedAt": "2026-11-09T10:25:31Z",
+  "version": "2.8",
+  "tag": "v2.8",
+  "publishedAt": "2026-11-09T10:57:25Z",
   "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
-  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.7/ZachranaDisku.exe",
-  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.7/ZachranaDisku-Setup-2.7.exe",
-  "sha256": "8f2d9e56b677373da9477683d726c059985bb9af874b824f5e2a9e3e334c8247",
-  "installerSha256": "29dc832a8e24a307782877b1bd6a5210ce72a357afddd5bd0e28dc8e42ee05d4",
-  "size": 52330318,
-  "installerSize": 47285580,
+  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.8/ZachranaDisku.exe",
+  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.8/ZachranaDisku-Setup-2.8.exe",
+  "sha256": "f3a216d6337e878f05d57238880fd65736a3d7c0b00dfe3f6eada5944530f544",
+  "installerSha256": "0dacf415beee24040a6656b6e6dbbc82cab110d7a605903e8e2a2a579de909f4",
+  "size": 52335765,
+  "installerSize": 47291268,
   "changelog": [
-    "Opravené rozpoznávanie MBR boot code: disk signature sa už nepovažuje za boot kód.",
-    "Opravené vytvorenie `{ramdiskoptions}` pri pridávaní Windows RE / OEM recovery.",
-    "Testované na klonovanom disku:",
-    "odstránený `bootmgr` a BCD → BIOS oprava ich obnovila",
-    "vynulovaný MBR boot code → `bootsect` ho obnovil",
-    "odstránené UEFI `bootmgfw.efi` a BCD → UEFI oprava ich obnovila",
-    "MBR → GPT konverzia cez `mbr2gpt` prešla",
-    "OEM recovery záznam sa pridal do BCD",
-    "Oprava aktuálneho systémového disku je naďalej zablokovaná."
+    "Oznam o novej verzii má vyšší riadok a plne viditeľné tlačidlo X.",
+    "Tlačidlo **Aktualizovať** priamo stiahne novú verziu s overením SHA256.",
+    "**Inštalovaná verzia:** stiahne sa inštalátor, program sa zavrie, tiho sa nainštaluje a spustí sa nová verzia.",
+    "**Prenosná verzia:** stiahne sa nový EXE, po zavretí programu sa prepíše pôvodný súbor a spustí sa nová verzia.",
+    "Pri sťahovaní je v lište viditeľný priebeh v percentách.",
+    "Inštalátor podporuje tichú auto-aktualizáciu cez `/AUTOUPDATE`."
   ]
 }

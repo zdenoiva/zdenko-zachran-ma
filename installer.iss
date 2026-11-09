@@ -1,5 +1,5 @@
 #define MyAppName "Zdenko, zachráň ma!"
-#define MyAppVersion "2.7"
+#define MyAppVersion "2.8"
 #define MyAppPublisher "Zdenko Ivančík"
 #define MyAppExeName "ZachranaDisku.exe"
 #define MyAppId "{{80516B42-DD69-4D58-A61B-6C0C881B6894}"
@@ -31,7 +31,7 @@ SetupLogging=yes
 CloseApplications=yes
 RestartApplications=no
 AllowNoIcons=yes
-VersionInfoVersion=2.7.0.0
+VersionInfoVersion=2.8.0.0
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 VersionInfoCompany={#MyAppPublisher}
@@ -65,6 +65,26 @@ Type: files; Name: "{app}\{#MyAppExeName}"
 var
   ModePage: TInputOptionWizardPage;
   PortableLaunch: Boolean;
+  AutoUpdate: Boolean;
+
+function HasCommandLineSwitch(const Value: String): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), Value) = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+end;
+
+function InitializeSetup: Boolean;
+begin
+  AutoUpdate := HasCommandLineSwitch('/AUTOUPDATE');
+  Result := True;
+end;
 
 procedure InitializeWizard;
 begin
@@ -150,6 +170,7 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Target: string;
+  ErrorCode: Integer;
 begin
   if CurStep = ssPostInstall then
   begin
@@ -157,9 +178,15 @@ begin
     Target := ExpandConstant('{app}\{#MyAppExeName}');
     if not CopyFile(ExpandConstant('{tmp}\{#MyAppExeName}'), Target, False) then
       MsgBox('Nepodarilo sa nainštalovať ' + ExpandConstant('{app}\{#MyAppExeName}') + '.',
-        mbError, MB_OK);
+        mbError, MB_OK)
+    else if AutoUpdate then
+    begin
+      { Po tichej aktualizácii znova spustíme novú verziu. }
+      ShellExec('', Target, '', ExtractFileDir(Target), SW_SHOWNORMAL, ewNoWait, ErrorCode);
+    end;
   end;
 end;
+
 
 
 

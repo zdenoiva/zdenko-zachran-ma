@@ -368,6 +368,35 @@ internal static class Program
             }
         }
 
+        if (args.Any(a => a.Equals("--selfupdate", StringComparison.OrdinalIgnoreCase)))
+        {
+            var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-selfupdate.log");
+            try
+            {
+                var info = UpdateService.CheckAsync(CancellationToken.None).GetAwaiter().GetResult();
+                if (info is null)
+                {
+                    File.WriteAllText(logPath, "SELFUPDATE FAIL: feed sa nenačítal");
+                    return 2;
+                }
+                File.WriteAllText(logPath,
+                    $"latest={info.Version} current={AppInfo.VersionDisplay} available={info.Available}\n");
+                if (!info.Available)
+                    return 0;
+
+                var result = UpdateInstaller.ApplyAsync(info, null, CancellationToken.None)
+                    .GetAwaiter().GetResult();
+                File.AppendAllText(logPath,
+                    $"method={result.Method} exitNow={result.ExitNow}\n{result.Message}\n");
+                return result.ExitNow ? 0 : 1;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(logPath, "SELFUPDATE FAIL: " + ex);
+                return 1;
+            }
+        }
+
         if (args.Any(a => a.Equals("--uismoke", StringComparison.OrdinalIgnoreCase)))
         {
             ApplicationConfiguration.Initialize();
