@@ -60,6 +60,7 @@ try {
 
     $latestPath = Join-Path $PSScriptRoot "latest.json"
     $latest | ConvertTo-Json -Depth 6 | Set-Content $latestPath -Encoding UTF8
+    Copy-Item $latestPath (Join-Path $PSScriptRoot "docs\latest.json") -Force
     Write-Host "latest.json aktualizovany na verziu $version" -ForegroundColor Green
     Write-Host "Portable: $([math]::Round($size / 1MB, 1)) MB  SHA256 $sha"
     Write-Host "Setup:    $([math]::Round($setupSize / 1MB, 1)) MB  SHA256 $setupSha"

@@ -1,0 +1,23 @@
+{
+  "version": "2.7",
+  "tag": "v2.7",
+  "publishedAt": "2026-11-09T10:25:31Z",
+  "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
+  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.7/ZachranaDisku.exe",
+  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.7/ZachranaDisku-Setup-2.7.exe",
+  "sha256": "8f2d9e56b677373da9477683d726c059985bb9af874b824f5e2a9e3e334c8247",
+  "installerSha256": "29dc832a8e24a307782877b1bd6a5210ce72a357afddd5bd0e28dc8e42ee05d4",
+  "size": 52330318,
+  "installerSize": 47285580,
+  "changelog": [
+    "Opravené rozpoznávanie MBR boot code: disk signature sa už nepovažuje za boot kód.",
+    "Opravené vytvorenie `{ramdiskoptions}` pri pridávaní Windows RE / OEM recovery.",
+    "Testované na klonovanom disku:",
+    "odstránený `bootmgr` a BCD → BIOS oprava ich obnovila",
+    "vynulovaný MBR boot code → `bootsect` ho obnovil",
+    "odstránené UEFI `bootmgfw.efi` a BCD → UEFI oprava ich obnovila",
+    "MBR → GPT konverzia cez `mbr2gpt` prešla",
+    "OEM recovery záznam sa pridal do BCD",
+    "Oprava aktuálneho systémového disku je naďalej zablokovaná."
+  ]
+}
