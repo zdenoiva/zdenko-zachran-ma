@@ -182,6 +182,8 @@ internal static class Program
                     form.SelectTabForTest(1);
                 if (args.Any(a => a.Equals("--boottab", StringComparison.OrdinalIgnoreCase)))
                     form.SelectTabForTest(2);
+                if (args.Any(a => a.Equals("--disktab", StringComparison.OrdinalIgnoreCase)))
+                    form.SelectTabForTest(3);
                 if (args.Any(a => a.Equals("--updatebanner", StringComparison.OrdinalIgnoreCase)))
                 {
                     if (loadDisks)
@@ -195,6 +197,7 @@ internal static class Program
                     form.ShowUpdateBannerForTest("9.9");
                 }
                 var loops = args.Any(a => a.Equals("--boottab", StringComparison.OrdinalIgnoreCase)) ? 140
+                    : args.Any(a => a.Equals("--disktab", StringComparison.OrdinalIgnoreCase)) ? 140
                     : loadDisks ? 200 : 40;
                 for (int i = 0; i < loops; i++)
                 {
@@ -376,6 +379,58 @@ internal static class Program
             catch (Exception ex)
             {
                 File.WriteAllText(logPath, "BOOTRECOVERY FAIL: " + ex);
+                return 1;
+            }
+        }
+
+        if (args.Any(a => a.Equals("--diskerase", StringComparison.OrdinalIgnoreCase)))
+        {
+            var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-diskerase.log");
+            try
+            {
+                var numberArg = args.SkipWhile(a => !a.Equals("--diskerase", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                if (!int.TryParse(numberArg, out int diskNumber))
+                {
+                    File.WriteAllText(logPath, "DISKERASE FAIL: chýba číslo disku");
+                    return 3;
+                }
+
+                var disks = DiskInfoCatalog.LoadAsync(CancellationToken.None).GetAwaiter().GetResult();
+                var disk = disks.FirstOrDefault(d => d.Number == diskNumber);
+                if (disk is null)
+                {
+                    File.WriteAllText(logPath, "DISKERASE FAIL: disk sa nenašiel");
+                    return 4;
+                }
+
+                var letterArg = args.SkipWhile(a => !a.Equals("--letter", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                var labelArg = args.SkipWhile(a => !a.Equals("--label", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                var options = new EraseOptions
+                {
+                    FullWipe = args.Any(a => a.Equals("--full", StringComparison.OrdinalIgnoreCase)),
+                    CreatePartition = !args.Any(a => a.Equals("--no-partition", StringComparison.OrdinalIgnoreCase)),
+                    FileSystem = args.Any(a => a.Equals("--fat32", StringComparison.OrdinalIgnoreCase)) ? "FAT32" : "NTFS",
+                    PartitionStyle = args.Any(a => a.Equals("--mbr", StringComparison.OrdinalIgnoreCase)) ? "MBR" : "GPT",
+                    Letter = !string.IsNullOrWhiteSpace(letterArg) && char.IsLetter(letterArg[0])
+                        ? char.ToUpperInvariant(letterArg[0])
+                        : null,
+                    Label = string.IsNullOrWhiteSpace(labelArg) ? "DATA" : labelArg
+                };
+
+                var lines = new List<string>();
+                var result = DiskEraser.EraseAsync(disk, options, null, lines.Add, CancellationToken.None)
+                    .GetAwaiter().GetResult();
+                lines.Add($"Success={result.Success} Drive={result.DriveLetter}");
+                lines.Add(result.Summary);
+                File.WriteAllLines(logPath, lines);
+                return result.Success ? 0 : 1;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(logPath, "DISKERASE FAIL: " + ex);
                 return 1;
             }
         }

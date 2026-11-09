@@ -47,7 +47,9 @@ public sealed class AboutPanel : UserControl
             "8. V Diagnóze vie overiť systémové súbory Windows cez DISM a opraviť ich cez " +
             "DISM RestoreHealth + SFC.\n" +
             "9. Záložka Boot vie opraviť štart Windows cez bcdboot/bootsect, pripraviť BCD, " +
-            "pridať Windows RE/OEM recovery a voliteľne previesť MBR na GPT cez mbr2gpt."));
+            "pridať Windows RE/OEM recovery a voliteľne previesť MBR na GPT cez mbr2gpt.\n" +
+            "10. Záložka Disk vie odstrániť partície alebo celý disk prepísať nulami " +
+            "a vytvoriť novú partíciu NTFS/FAT32."));
 
         layout.Controls.Add(Section("Použité nástroje a autori",
             "• Windows chkdsk — oprava NTFS/FAT32 (Microsoft)\n" +
@@ -55,6 +57,7 @@ public sealed class AboutPanel : UserControl
             "• PowerShell Storage cmdlets — dočasné písmeno a stav volume (Microsoft)\n" +
             "• DISM a SFC — automatická obnova systémových nástrojov (Microsoft)\n" +
             "• bcdboot, bcdedit, bootsect, reagentc, mbr2gpt — oprava bootovania (Microsoft)\n" +
+            "• Clear-Disk, Initialize-Disk, New-Partition, Format-Volume — vymazanie a príprava disku (Microsoft)\n" +
             "• rust-ntfs-recover (0BSD) — inšpirácia pre algoritmus hĺbkového NTFS skenu, autor mjgil-rust\n" +
             "• baize (MIT) — inšpirácia pre trojvrstvový koncept, autor karminski\n" +
             "• Microsoft FAT specification — verejná dokumentácia pre FAT32 parser\n" +

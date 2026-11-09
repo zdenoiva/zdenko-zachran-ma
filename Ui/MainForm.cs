@@ -24,6 +24,7 @@ public sealed class MainForm : Form
     private readonly WizardPanel _wizard = new();
     private readonly AboutPanel _about = new();
     private readonly BootPanel _boot = new();
+    private readonly DiskPanel _disk = new();
     private SplitContainer? _diagSplit;
 
     private readonly Button _btnDiagnose = new();
@@ -89,6 +90,7 @@ public sealed class MainForm : Form
             _refreshButton.Enabled = !busy;
         };
         _wizard.ActionSelected += async action => await OnWizardActionAsync(action);
+        _disk.DiskChanged += async () => await LoadPartitionsAsync();
 
         BuildUi();
         if (!_smoke)
@@ -476,13 +478,14 @@ public sealed class MainForm : Form
         _tabs.Padding = new Point(14, 6);
         _tabs.Appearance = TabAppearance.FlatButtons;
         _tabs.SizeMode = TabSizeMode.Fixed;
-        _tabs.ItemSize = new Size(150, 34);
+        _tabs.ItemSize = new Size(136, 34);
         _tabs.Font = new Font("Segoe UI Semibold", 9.5f);
         _tabs.BackColor = Theme.Background;
 
         _tabs.TabPages.Add(BuildWizardTab());
         _tabs.TabPages.Add(BuildDiagnosticsTab());
         _tabs.TabPages.Add(BuildBootTab());
+        _tabs.TabPages.Add(BuildDiskTab());
         _tabs.TabPages.Add(BuildRepairTab());
 
         var recoveryTab = new TabPage("Záchrana súborov")
@@ -499,6 +502,8 @@ public sealed class MainForm : Form
         {
             if (_tabs.SelectedTab?.Controls.Contains(_boot) == true)
                 _ = _boot.EnsureLoadedAsync();
+            if (_tabs.SelectedTab?.Controls.Contains(_disk) == true)
+                _ = _disk.EnsureLoadedAsync();
         };
         return _tabs;
     }
@@ -522,6 +527,17 @@ public sealed class MainForm : Form
             Padding = new Padding(0)
         };
         page.Controls.Add(_boot);
+        return page;
+    }
+
+    private TabPage BuildDiskTab()
+    {
+        var page = new TabPage("Disk")
+        {
+            BackColor = Theme.Background,
+            Padding = new Padding(0)
+        };
+        page.Controls.Add(_disk);
         return page;
     }
 

@@ -1,18 +1,22 @@
 {
-  "version": "2.10",
-  "tag": "v2.10",
-  "publishedAt": "2026-11-09T11:30:56Z",
+  "version": "2.11",
+  "tag": "v2.11",
+  "publishedAt": "2026-11-09T12:11:18Z",
   "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
-  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.10/ZachranaDisku.exe",
-  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.10/ZachranaDisku-Setup-2.10.exe",
-  "sha256": "31ca20935310d109013bfa97551af5f80f5a6f4818cab24d5f9e858705b57455",
-  "installerSha256": "58b29d7b70424f0776ce34afe50ebd62ffa851d443efc84a2c389548b4e42016",
-  "size": 52335830,
-  "installerSize": 47292420,
+  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.11/ZachranaDisku.exe",
+  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.11/ZachranaDisku-Setup-2.11.exe",
+  "sha256": "63a0282a7cdea0b3d8a2320325d486290f3ad3bf581a5cd392b48e9ad5605378",
+  "installerSha256": "f78f5b399d930ab8f488d95ac0cfc4da99d16dd5c976011cdb6f1e1c75e9ef88",
+  "size": 52347992,
+  "installerSize": 47304211,
   "changelog": [
-    "Opravené zmiznutie tlačidla **Aktualizovať** a **X** po načítaní disku.",
-    "Hlavička s dlhým popisom disku už nerozširuje celé okno do šírky.",
-    "Lišta aktualizácie zostáva po načítaní disku plne viditeľná a klikateľná.",
-    "Dopočítaná minimálna výška lišty, aby bolo X celé."
+    "Nová záložka **Disk** na vymazanie celého disku.",
+    "Rýchle vymazanie odstráni partície; dáta môžu byť ešte obnoviteľné.",
+    "Úplné prepísanie nulami prepíše celý disk a overí začiatok/koniec.",
+    "Po vyčistení vie vytvoriť jednu partíciu NTFS/FAT32, GPT/MBR, s písmenom",
+    "Aktuálny systémový disk a disk, z ktorého program beží, sú zablokované.",
+    "Operácia vyžaduje potvrdenie textom a zaškrtnutie súhlasu.",
+    "Pri úplnom prepise je viditeľný priebeh a možnosť zrušiť.",
+    "Testované: rýchle vymazanie, FAT32 aj NTFS, GPT aj MBR, úplné nulovanie"
   ]
 }

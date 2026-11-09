@@ -1,5 +1,18 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.11] - 2026-11-09
+
+- Nová záložka **Disk** na vymazanie celého disku.
+- Rýchle vymazanie odstráni partície; dáta môžu byť ešte obnoviteľné.
+- Úplné prepísanie nulami prepíše celý disk a overí začiatok/koniec.
+- Po vyčistení vie vytvoriť jednu partíciu NTFS/FAT32, GPT/MBR, s písmenom
+  a názvom.
+- Aktuálny systémový disk a disk, z ktorého program beží, sú zablokované.
+- Operácia vyžaduje potvrdenie textom a zaškrtnutie súhlasu.
+- Pri úplnom prepise je viditeľný priebeh a možnosť zrušiť.
+- Testované: rýchle vymazanie, FAT32 aj NTFS, GPT aj MBR, úplné nulovanie
+  a opätovné vytvorenie partície.
+
 ## [2.10] - 2026-11-09
 
 - Opravené zmiznutie tlačidla **Aktualizovať** a **X** po načítaní disku.

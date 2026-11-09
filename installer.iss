@@ -1,5 +1,5 @@
 #define MyAppName "Zdenko, zachráň ma!"
-#define MyAppVersion "2.10"
+#define MyAppVersion "2.11"
 #define MyAppPublisher "Zdenko Ivančík"
 #define MyAppExeName "ZachranaDisku.exe"
 #define MyAppId "{{80516B42-DD69-4D58-A61B-6C0C881B6894}"
@@ -31,7 +31,7 @@ SetupLogging=yes
 CloseApplications=yes
 RestartApplications=no
 AllowNoIcons=yes
-VersionInfoVersion=2.10.0.0
+VersionInfoVersion=2.11.0.0
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 VersionInfoCompany={#MyAppPublisher}
@@ -186,6 +186,7 @@ begin
     end;
   end;
 end;
+
 
 
 

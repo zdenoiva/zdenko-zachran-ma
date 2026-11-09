@@ -1,6 +1,6 @@
 # Zdenko, zachráň ma!
 
-**Verzia 2.10** · © 2026 **Zdenko Ivančík**
+**Verzia 2.11** · © 2026 **Zdenko Ivančík**
 
 Nekomerčné použitie je povolené. **Komerčné použitie je možné len s výslovným
 súhlasom autora.**
@@ -12,7 +12,7 @@ potvrdenia.
 - GitHub: <https://github.com/zdenoiva/zdenko-zachran-ma>
 - Releases: <https://github.com/zdenoiva/zdenko-zachran-ma/releases>
 - Stránka na stiahnutie: <https://zdenoiva.github.io/zdenko-zachran-ma/>
-- Aktuálna verzia: **2.10**
+- Aktuálna verzia: **2.11**
 
 ## Inštalácia alebo prenosné spustenie
 
@@ -20,7 +20,7 @@ potvrdenia.
   - **jeden súbor**, self-contained, nepotrebuje .NET ani inštaláciu
   - skopírujte ho na iný počítač a spustite
   - všetky potrebné natívne knižnice sa rozbalia dočasne automaticky
-- **Inštalátor:** `dist\ZachranaDisku-Setup-2.10.exe`
+- **Inštalátor:** `dist\ZachranaDisku-Setup-2.11.exe`
   - po spustení ponúkne dve možnosti:
     - **Nainštalovať do počítača** (Program Files, Štart, odinštalovanie cez
       Nastavenia → Aplikácie)
@@ -130,6 +130,21 @@ potvrdenia.
 - pridanie **Windows RE / OEM recovery WIM** do boot menu
 - samostatný popis nastavení **BIOS/UEFI** vrátane rizika SATA/RAID/AHCI radičov
 
+### Vymazanie disku (Disk)
+- samostatná záložka **Disk**
+- **rýchle vymazanie**: odstráni partície a dátové štruktúry; dáta môžu byť
+  ešte obnoviteľné
+- **úplné prepísanie nulami**: zapíše nuly na celý disk; vhodné pred predajom
+  disku, pri SSD odporúčame aj výrobcom dodávaný secure erase
+- po vyčistení vie vytvoriť jednu partíciu:
+  - **NTFS** alebo **FAT32**
+  - **GPT** alebo **MBR**
+  - zvolené písmeno alebo automaticky
+  - vlastný názov
+- **aktuálny systémový disk a disk, z ktorého program beží, sú zablokované**
+- pred vymazaním sa vyžaduje potvrdenie textom a zaškrtnutie súhlasu
+- pri úplnom prepísaní je viditeľný priebeh a možnosť zrušiť
+
 ### Protokol a zálohy
 - všetky operácie sa logujú do `%LOCALAPPDATA%\ZdenkoZachranMa\logs`
 - zálohy metadát: `Dokumenty\ZdenkoZachranMa\zalohy`
@@ -182,7 +197,7 @@ winget install JRSoftware.InnoSetup
 .\make-installer.ps1
 ```
 
-Výsledok: `dist\ZachranaDisku-Setup-2.10.exe`.
+Výsledok: `dist\ZachranaDisku-Setup-2.11.exe`.
 
 ## Vydanie novej verzie
 
@@ -205,7 +220,7 @@ Potom commitnite a pushnite `latest.json` a `CHANGELOG.md`:
 
 ```powershell
 git add latest.json CHANGELOG.md
-git commit -m "Release v2.10"
+git commit -m "Release v2.11"
 git push
 ```
 
@@ -249,6 +264,7 @@ Licenčné texty tretích strán: `THIRD_PARTY_NOTICES.md`.
 Program pracuje s diskovými zariadeniami a pri oprave zapisuje do metadát.
 Používate ho na vlastné riziko. Pred opravou si vždy skopírujte dôležité dáta.
 Záchrana má zmysel len dovtedy, kým sa prepísané dáta neprepíšu inými.
+
 
 
 
