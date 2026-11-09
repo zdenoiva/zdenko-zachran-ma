@@ -1,0 +1,19 @@
+{
+  "version": "2.5",
+  "tag": "v2.5",
+  "publishedAt": "2026-11-09T09:07:21Z",
+  "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
+  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.5/ZachranaDisku.exe",
+  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.5/ZachranaDisku-Setup-2.5.exe",
+  "sha256": "1132e39762f13c23b05546379e0bac4859c3cbeabc3e7df78ed56f6d72858551",
+  "installerSha256": "86dc0033484e7ed3db359cf70b4ad775bb0adf1be2ea0054d82c2ca950a7c790",
+  "size": 52299308,
+  "installerSize": 47252889,
+  "changelog": [
+    "Pridaná kontrola novšej verzie pri spustení aplikácie.",
+    "Nová stránka na stiahnutie na GitHub Pages.",
+    "Prenosná verzia a inštalátor sa vydávajú cez GitHub Releases.",
+    "`latest.json` obsahuje verziu, odkazy, veľkosť a SHA256.",
+    "Doplnené vydávanie cez `release.ps1`."
+  ]
+}

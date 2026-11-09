@@ -1,0 +1,22 @@
+Zdenko, zachráň ma!
+Copyright (c) 2026 Zdenko Ivančík. Všetky práva vyhradené.
+
+Tento program vytvoril Zdenko Ivančík.
+
+POUŽITIE:
+- Nekomerčné použitie, štúdium a osobné použitie je povolené.
+- Komerčné použitie (predaj, súčasť komerčného produktu, poskytovanie
+  platenej služby založenej na tomto programe a pod.) je možné len
+  s predchádzajúcim výslovným písomným súhlasom autora.
+
+ZODPOVEDNOSŤ:
+Program pracuje s diskovými zariadeniami a môže zapisovať do metadát.
+Používate ho na vlastné riziko. Pred akoukoľvek opravou si vytvorte
+záložnú kópiu dôležitých dát.
+
+POUŽITÉ OPEN-SOURCE KOMPONENTY:
+- rust-ntfs-recover (0BSD), autor mjgil-rust — inšpirácia pre hĺbkový NTFS sken
+- baize (MIT), autor karminski — inšpirácia konceptu
+- Microsoft FAT specification (verejná dokumentácia)
+
+Licenčné texty tretích strán sú v THIRD_PARTY_NOTICES.md.

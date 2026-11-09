@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>ZachranaDisku</AssemblyName>
+    <RootNamespace>NtfsRescue</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <Version>2.5.0</Version>
+    <Company>Zdenko Ivančík</Company>
+    <Product>Zdenko, zachráň ma!</Product>
+    <AssemblyTitle>Zdenko, zachráň ma!</AssemblyTitle>
+    <Description>Záchrana a oprava NTFS/FAT32 diskov</Description>
+    <Copyright>© 2026 Zdenko Ivančík</Copyright>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="dist\**" />
+    <Compile Remove="publish\**" />
+    <EmbeddedResource Include="app-icon-64.png" LogicalName="NtfsRescue.app-icon-64.png" />
+    <EmbeddedResource Include="app.ico" LogicalName="NtfsRescue.app.ico" />
+  </ItemGroup>
+
+</Project>
+
