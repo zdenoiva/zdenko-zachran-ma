@@ -22,7 +22,8 @@ public enum RecommendedAction
     RestoreFat,
     AssignLetter,
     TryNtfs,
-    TryFat32
+    TryFat32,
+    SurfaceScan
 }
 
 public sealed class QuickDiagnosisReport
@@ -36,6 +37,7 @@ public sealed class QuickDiagnosisReport
     public bool SmartAlert;
     public bool SmartAvailable;
     public SmartInfo? Smart;
+    public QuickReadResult? ReadTest;
     public readonly List<RecommendedAction> Actions = new();
     public bool HasLetter;
     public bool BootFromBackup;
@@ -70,6 +72,20 @@ public static class QuickDiagnosisService
         else if (partition.DiskNumber >= 0)
         {
             var smart = SmartInfoService.Query(partition.DiskNumber, ct);
+            if (partition.DiskSize > 0)
+            {
+                var quickRead = QuickReadTest.Run(partition.DiskNumber, partition.DiskSize,
+                    smart.MediaType, smart.Interface, ct);
+                smart.ReadTestRan = quickRead.Ran;
+                smart.ReadTestMbPerSecond = quickRead.MbPerSecond;
+                smart.ReadTestWorstMs = quickRead.WorstMs;
+                smart.ReadTestErrors = quickRead.Errors;
+                smart.ReadTestTimedOut = quickRead.TimedOut;
+                smart.ReadTestRating = quickRead.Rating;
+                smart.ReadTestSummary = quickRead.Summary;
+                report.ReadTest = quickRead;
+                if (quickRead.Ran) SmartInfoService.ComposeDisplay(smart);
+            }
             report.Smart = smart;
             report.SmartText = smart.DisplayText;
             report.SmartAlert = smart.HasAlert;
@@ -93,6 +109,14 @@ public static class QuickDiagnosisService
             default:
                 DiagnoseRaw(report);
                 break;
+        }
+
+        if (report.ReadTest is { Ran: true } read &&
+            read.Rating is QuickReadRating.Bad or QuickReadRating.Caution)
+        {
+            report.Actions.Add(RecommendedAction.SurfaceScan);
+            if (report.Severity == DiagnosisSeverity.Ok)
+                report.Severity = DiagnosisSeverity.Warning;
         }
 
         return report;

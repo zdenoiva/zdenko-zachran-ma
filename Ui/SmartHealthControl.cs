@@ -11,6 +11,7 @@ public sealed class SmartHealthControl : UserControl
     private readonly Label _temp = new();
     private readonly Label _life = new();
     private readonly Label _hours = new();
+    private readonly Label _read = new();
     private readonly Label _sectors = new();
     private readonly Label _data = new();
 
@@ -20,8 +21,8 @@ public sealed class SmartHealthControl : UserControl
         AutoSize = false;
         BackColor = Theme.Surface;
         Padding = new Padding(14, 12, 14, 12);
-        MinimumSize = new Size(310, 0);
-        Size = new Size(314, 214);
+        MinimumSize = new Size(334, 0);
+        Size = new Size(338, 224);
         BuildUi();
         SetData(null);
         Paint += (_, e) =>
@@ -73,18 +74,19 @@ public sealed class SmartHealthControl : UserControl
             Dock = DockStyle.Top,
             AutoSize = true,
             ColumnCount = 2,
-            RowCount = 3,
+            RowCount = 4,
             BackColor = Theme.Surface,
             Margin = new Padding(0, 8, 0, 0)
         };
         metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         metrics.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 4; i++)
             metrics.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         AddMetric(metrics, 0, "Teplota", _temp);
         AddMetric(metrics, 1, "Životnosť", _life);
         AddMetric(metrics, 2, "Hodiny", _hours);
+        AddMetric(metrics, 3, "Čítanie", _read);
         body.Controls.Add(metrics, 1, 0);
         root.Controls.Add(body, 0, 1);
 
@@ -106,7 +108,7 @@ public sealed class SmartHealthControl : UserControl
         footer.Controls.Add(_sectors, 0, 0);
 
         _data.AutoSize = true;
-        _data.MaximumSize = new Size(286, 0);
+        _data.MaximumSize = new Size(310, 0);
         _data.Font = Theme.Small;
         _data.ForeColor = Theme.Muted;
         _data.Margin = new Padding(0);
@@ -137,7 +139,7 @@ public sealed class SmartHealthControl : UserControl
 
     public void SetData(SmartInfo? info)
     {
-        if (info is null || !info.Available)
+        if (info is null || (!info.Available && !info.ReadTestRan))
         {
             _gauge.Percent = -1;
             _gauge.Caption = "nedostupné";
@@ -146,18 +148,20 @@ public sealed class SmartHealthControl : UserControl
             _temp.Text = "—";
             _life.Text = "—";
             _hours.Text = "—";
+            _read.Text = "—";
             _temp.ForeColor = Theme.Muted;
             _life.ForeColor = Theme.Muted;
             _hours.ForeColor = Theme.Muted;
+            _read.ForeColor = Theme.Muted;
             _sectors.Text = "S.M.A.R.T. údaje nie sú dostupné.";
             _sectors.ForeColor = Theme.Muted;
             _data.Text = "";
             return;
         }
 
-        _gauge.Percent = info.HealthScore;
-        _gauge.Caption = info.HealthLabel;
-        _gauge.Accent = RatingColor(info.Rating);
+        _gauge.Percent = info.Available ? info.HealthScore : -1;
+        _gauge.Caption = info.Available ? info.HealthLabel : "bez SMART";
+        _gauge.Accent = info.Available ? RatingColor(info.Rating) : Theme.Muted;
         _gauge.Invalidate();
 
         _temp.Text = info.Temperature > 0 ? $"{info.Temperature} °C" : "—";
@@ -181,6 +185,27 @@ public sealed class SmartHealthControl : UserControl
             : "—";
         _hours.ForeColor = Theme.Text;
 
+        if (!info.ReadTestRan)
+        {
+            _read.Text = "—";
+            _read.ForeColor = Theme.Muted;
+        }
+        else if (info.ReadTestTimedOut || info.ReadTestErrors > 0)
+        {
+            _read.Text = "chyba / limit";
+            _read.ForeColor = Theme.Danger;
+        }
+        else
+        {
+            _read.Text = $"{info.ReadTestMbPerSecond:0.0} MB/s";
+            _read.ForeColor = info.ReadTestRating switch
+            {
+                QuickReadRating.Bad => Theme.Danger,
+                QuickReadRating.Caution => Theme.Warning,
+                _ => Theme.Success
+            };
+        }
+
         var problems = new List<string>();
         if (info.ReallocatedSectors > 0) problems.Add($"presunuté {info.ReallocatedSectors:N0}");
         if (info.PendingSectors > 0) problems.Add($"nestabilné {info.PendingSectors:N0}");
@@ -190,7 +215,12 @@ public sealed class SmartHealthControl : UserControl
         if (info.CriticalWarning != 0)
             problems.Add("NVMe varovanie 0x" + info.CriticalWarning.ToString("X2"));
 
-        if (problems.Count == 0)
+        if (!info.Available)
+        {
+            _sectors.Text = "S.M.A.R.T. nedostupné · otestované je aspoň čítanie.";
+            _sectors.ForeColor = Theme.Muted;
+        }
+        else if (problems.Count == 0)
         {
             _sectors.Text = "Sektory: bez chýb";
             _sectors.ForeColor = Theme.Success;

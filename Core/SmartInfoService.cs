@@ -25,6 +25,8 @@ public sealed class SmartInfo
     public bool Available;
     public bool Nvme;
     public string Model = "";
+    public string MediaType = "";
+    public string Interface = "";
     public string Health = "";
     public string Status = "";
     public long PowerOnHours;
@@ -57,6 +59,13 @@ public sealed class SmartInfo
     public string HealthLabel = "neznámy";
     public string AlertReason = "";
     public string DisplayText = "S.M.A.R.T: nedostupné";
+    public bool ReadTestRan;
+    public double ReadTestMbPerSecond;
+    public double ReadTestWorstMs;
+    public int ReadTestErrors;
+    public bool ReadTestTimedOut;
+    public QuickReadRating ReadTestRating = QuickReadRating.Unknown;
+    public string ReadTestSummary = "";
     public List<SmartAttribute> Attributes = new();
 }
 
@@ -142,6 +151,7 @@ foreach ($a in $attrs) {
   Health = [string]$d.HealthStatus
   Status = [string]$d.OperationalStatus
   BusType = [string]$d.BusType
+  MediaType = [string]$d.MediaType
   PowerOnHours = $r.PowerOnHours
   PowerCycleCount = $r.PowerCycleCount
   Temperature = $r.Temperature
@@ -172,6 +182,8 @@ foreach ($a in $attrs) {
         {
             info.Available = true;
             info.Model = Ps.Str(obj, "FriendlyName");
+            info.MediaType = Ps.Str(obj, "MediaType");
+            info.Interface = Ps.Str(obj, "BusType");
             if (string.IsNullOrWhiteSpace(info.Health)) info.Health = Ps.Str(obj, "Health");
             if (string.IsNullOrWhiteSpace(info.Status)) info.Status = Ps.Str(obj, "Status");
             if (info.Temperature <= 0) info.Temperature = Ps.Long(obj, "Temperature");
@@ -330,6 +342,25 @@ foreach ($a in $attrs) {
         if (info.Temperature > (info.Nvme ? 70 : 55))
             reasons.Add($"vysoká teplota {info.Temperature} °C");
         if (info.Wear >= 80) { reasons.Add($"opotrebenie {info.Wear} %"); replacement = true; }
+        if (info.PowerOnHours >= 30_000)
+        {
+            reasons.Add($"veľmi vysoký počet hodín ({info.PowerOnDays:N0} dní) – zvážte výmenu");
+            replacement = true;
+        }
+        else if (info.PowerOnHours >= 15_000)
+        {
+            reasons.Add($"vysoký počet hodín ({info.PowerOnDays:N0} dní) – zvážte výmenu");
+        }
+
+        if (info.ReadTestRating == QuickReadRating.Bad)
+        {
+            reasons.Add($"pomalé čítanie {info.ReadTestMbPerSecond:0.0} MB/s – plná kontrola povrchu");
+            if (info.ReadTestErrors > 0 || info.ReadTestTimedOut) replacement = true;
+        }
+        else if (info.ReadTestRating == QuickReadRating.Caution)
+        {
+            reasons.Add($"čítanie {info.ReadTestMbPerSecond:0.0} MB/s – odporúčaná kontrola povrchu");
+        }
 
         if (info.ReallocatedSectors > 0)
         {
@@ -434,6 +465,13 @@ foreach ($a in $attrs) {
         if (!string.IsNullOrWhiteSpace(info.Health) &&
             !info.Health.Equals("Healthy", StringComparison.OrdinalIgnoreCase)) score -= 30;
         if (info.PredictFailure) score -= 40;
+        if (info.PowerOnHours >= 30_000) score -= 20;
+        else if (info.PowerOnHours >= 15_000) score -= 10;
+
+        if (info.ReadTestRating == QuickReadRating.Bad) score -= 25;
+        else if (info.ReadTestRating == QuickReadRating.Caution) score -= 10;
+        if (info.ReadTestErrors > 0 || info.ReadTestTimedOut) score -= 10;
+
         if (info.Nvme)
         {
             if (info.Temperature > 75) score -= 10;

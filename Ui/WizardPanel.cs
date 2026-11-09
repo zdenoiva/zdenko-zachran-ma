@@ -60,7 +60,7 @@ public sealed class WizardPanel : UserControl
         };
         cardLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58));
         cardLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        cardLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 330));
+        cardLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 354));
         cardLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         cardLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -161,7 +161,9 @@ public sealed class WizardPanel : UserControl
             ? "S.M.A.R.T: nedostupné"
             : report.SmartText;
         _lblSmart.Visible = report.SmartAlert;
-        _smartCard.SetData(report.SmartAvailable ? report.Smart : null);
+        _smartCard.SetData(report.SmartAvailable || report.ReadTest is { Ran: true }
+            ? report.Smart
+            : null);
 
         if (!report.SmartAvailable)
         {
@@ -235,6 +237,7 @@ public sealed class WizardPanel : UserControl
         RecommendedAction.AssignLetter => "Priradiť písmeno",
         RecommendedAction.TryNtfs => "Skúsiť NTFS",
         RecommendedAction.TryFat32 => "Skúsiť FAT32",
+        RecommendedAction.SurfaceScan => "Plná kontrola povrchu",
         _ => action.ToString()
     };
 }

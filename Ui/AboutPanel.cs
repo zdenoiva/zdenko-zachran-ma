@@ -54,9 +54,11 @@ public sealed class AboutPanel : UserControl
             "rýchlosti, štatistiky a vadné sektory, uloží CSV report a vie sa pokúsiť " +
             "o zápis/opravu vadných sektorov.\n" +
             "12. Sprievodca zobrazí grafickú kartu stavu disku: zdravie v %, teplotu, " +
-            "životnosť SSD, sektory a pri NVMe aj zápis/čítanie z NVMe SMART logu.\n" +
+            "životnosť SSD, sektory, krátky test čítania a pri NVMe aj zápis/čítanie z NVMe SMART logu.\n" +
             "13. Aktualizácie: program skontroluje novú verziu, stiahne inštalátor alebo " +
-            "prenosnú verziu a po zavretí programu sa sám aktualizuje."));
+            "prenosnú verziu a po zavretí programu sa sám aktualizuje.\n" +
+            "14. Pri pomalom čítaní alebo vysokom počte hodín program zníži zdravie disku, " +
+            "upozorní na výmenu a ponúkne plnú kontrolu povrchu."));
 
         layout.Controls.Add(Section("Použité nástroje a licencie",
             "• Windows chkdsk — oprava NTFS/FAT32 (Microsoft)\n" +

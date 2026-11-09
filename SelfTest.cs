@@ -317,6 +317,40 @@ internal static class SelfTest
         Check(!ssd.HasAlert, "NVMe bez chýb nemá alert");
         Check(ssd.DisplayText.Contains("97 %", StringComparison.Ordinal),
             "NVMe text obsahuje percento zdravia");
+
+        var aged = new SmartInfo
+        {
+            Available = true,
+            Health = "Healthy",
+            Status = "OK",
+            PowerOnHours = 15_383,
+            ReadTestRan = true,
+            ReadTestRating = QuickReadRating.Caution,
+            ReadTestMbPerSecond = 37.2
+        };
+        SmartInfoService.ComposeDisplay(aged);
+        Check(aged.HealthScore == 80, "vysoký počet hodín a pomalé čítanie znížia zdravie");
+        Check(aged.Rating == SmartRating.Caution, "znížené zdravie je Pozor");
+        Check(aged.HasAlert, "vek disku a čítanie vytvoria alert");
+        Check(aged.DisplayText.Contains("zvážte výmenu", StringComparison.Ordinal),
+            "alert pri vysokom počte hodín odporúča výmenu");
+        Check(aged.DisplayText.Contains("kontrola povrchu", StringComparison.Ordinal),
+            "alert pri pomalom čítaní odporúča kontrolu povrchu");
+
+        var veryOld = new SmartInfo
+        {
+            Available = true,
+            Health = "Healthy",
+            Status = "OK",
+            PowerOnHours = 31_000,
+            ReadTestRan = true,
+            ReadTestRating = QuickReadRating.Good,
+            ReadTestMbPerSecond = 400
+        };
+        SmartInfoService.ComposeDisplay(veryOld);
+        Check(veryOld.ReplacementRecommended, "veľmi vysoký počet hodín odporúča výmenu disku");
+        Check(veryOld.DisplayText.Contains("Odporúčaná výmena disku", StringComparison.Ordinal),
+            "text pri veľmi starom disku obsahuje odporúčanie výmeny");
     }
 
     private static void TestSystemFileDetection()

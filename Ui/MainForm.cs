@@ -29,6 +29,7 @@ public sealed class MainForm : Form
     private SplitContainer? _diagSplit;
     private TabPage _recoveryTab = null!;
     private TabPage _repairTab = null!;
+    private TabPage _surfaceTab = null!;
 
     private readonly Button _btnDiagnose = new();
     private readonly Button _btnSaveDiag = new();
@@ -622,6 +623,7 @@ public sealed class MainForm : Form
             BackColor = Theme.Background,
             Padding = new Padding(0)
         };
+        _surfaceTab = page;
         page.Controls.Add(_surface);
         return page;
     }
@@ -1214,6 +1216,14 @@ public sealed class MainForm : Form
 
             case RecommendedAction.TryFat32:
                 await StartRecoveryAsync(partition, deep: false, FileSystemKind.Fat32);
+                break;
+
+            case RecommendedAction.SurfaceScan:
+                await _surface.EnsureLoadedAsync();
+                _surface.SelectDiskNumber(partition.DiskNumber);
+                _tabs.SelectedTab = _surfaceTab;
+                _statusLabel.Text =
+                    "Spustite „Spustiť kontrolu povrchu“ — overí rýchlosť a vadné bloky celého disku.";
                 break;
         }
     }

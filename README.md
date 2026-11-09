@@ -1,6 +1,6 @@
 # Zdenko, zachráň ma!
 
-**Verzia 2.16** · © 2026 **Zdenko Ivančík**
+**Verzia 2.17** · © 2026 **Zdenko Ivančík**
 
 Nekomerčné použitie je povolené. **Komerčné použitie je možné len s výslovným
 súhlasom autora.**
@@ -12,7 +12,7 @@ potvrdenia.
 - GitHub: <https://github.com/zdenoiva/zdenko-zachran-ma>
 - Releases: <https://github.com/zdenoiva/zdenko-zachran-ma/releases>
 - Stránka na stiahnutie: <https://zdenoiva.github.io/zdenko-zachran-ma/>
-- Aktuálna verzia: **2.16**
+- Aktuálna verzia: **2.17**
 
 ## Inštalácia alebo prenosné spustenie
 
@@ -20,7 +20,7 @@ potvrdenia.
   - **jeden súbor**, self-contained, nepotrebuje .NET ani inštaláciu
   - skopírujte ho na iný počítač a spustite
   - všetky potrebné natívne knižnice sa rozbalia dočasne automaticky
-- **Inštalátor:** `dist\ZachranaDisku-Setup-2.16.exe`
+- **Inštalátor:** `dist\ZachranaDisku-Setup-2.17.exe`
   - po spustení ponúkne dve možnosti:
     - **Nainštalovať do počítača** (Program Files, Štart, odinštalovanie cez
       Nastavenia → Aplikácie)
@@ -61,7 +61,12 @@ potvrdenia.
   - kruhový ukazovateľ zdravia 0–100 % s hodnotením **Výborný / Dobrý / Pozor / Kritický**
   - teplota, zostávajúca životnosť SSD, hodiny a dni v prevádzke
   - vadné (presunuté), nestabilné a neopraviteľné sektory, chyby média a CRC
+  - krátky test čítania (12 × 4 MB, max. 6 s) a jeho rýchlosť v MB/s
   - pri NVMe aj zápis a čítanie v TB a náhradné bloky
+- **rýchly test čítania** pri každej diagnostike:
+  - pomalé čítanie zníži zdravie a odporučí plnú kontrolu povrchu
+  - viac ako 15 000 hodín (625 dní) upozorní na zváženie výmeny
+  - pri pomalom disku pribudne tlačidlo **Plná kontrola povrchu**
 - NVMe: čítanie **SMART/Health log page** priamo cez Windows (rovnaké údaje ako
   CrystalDiskInfo): opotrebenie v %, náhradné bloky, media errors, unsafe shutdowns,
   dátové jednotky prečítané/zapísané
@@ -229,7 +234,7 @@ winget install JRSoftware.InnoSetup
 .\make-installer.ps1
 ```
 
-Výsledok: `dist\ZachranaDisku-Setup-2.16.exe`.
+Výsledok: `dist\ZachranaDisku-Setup-2.17.exe`.
 
 ## Vydanie novej verzie
 
@@ -252,7 +257,7 @@ Potom commitnite a pushnite `latest.json` a `CHANGELOG.md`:
 
 ```powershell
 git add latest.json CHANGELOG.md
-git commit -m "Release v2.16"
+git commit -m "Release v2.17"
 git push
 ```
 
@@ -296,6 +301,7 @@ Licenčné texty tretích strán: `THIRD_PARTY_NOTICES.md`.
 Program pracuje s diskovými zariadeniami a pri oprave zapisuje do metadát.
 Používate ho na vlastné riziko. Pred opravou si vždy skopírujte dôležité dáta.
 Záchrana má zmysel len dovtedy, kým sa prepísané dáta neprepíšu inými.
+
 
 
 

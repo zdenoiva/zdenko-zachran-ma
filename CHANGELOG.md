@@ -1,5 +1,24 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.17] - 2026-11-09
+
+- **Rýchly test čítania pri diagnostike** (Sprievodca):
+  - 12 vzoriek po 4 MB (48 MB) — hustejšie na začiatku disku, zvyšok rovnomerne
+  - maximálne 6 sekúnd, takže štart sa nezdrží
+  - meria priame čítanie bez cache, ak to radič podporuje
+  - rýchlosť sa porovnáva podľa typu disku a zbernice (USB, SATA, NVMe, SSD/HDD)
+- **Zdravie disku už neukazuje 100 %, keď je disk podozrivý**:
+  - pomalé čítanie zníži zdravie a pridá „odporúčaná kontrola povrchu“
+  - viac ako 15 000 hodín (625 dní) zníži zdravie a pridá „zvážte výmenu“
+  - viac ako 30 000 hodín odporúča výmenu disku
+  - chyba čítania alebo časový limit testu zníži zdravie výraznejšie
+- Karta stavu zobrazuje **Čítanie** (MB/s) farebne podľa výsledku.
+- Pri pomalom disku pribudne tlačidlo **Plná kontrola povrchu**, ktoré otvorí
+  záložku Povrch s vybraným diskom.
+- Overené na WDC WDS250G2B0A (USB SSD, 15 383 h, 640 dní):
+  zdravie **80 % — Pozor**, čítanie **39,5 MB/s**, upozornenie na vek aj pomalé čítanie.
+- „O programe“ doplnené o rýchly test čítania a hodnotenie veku disku.
+
 ## [2.16] - 2026-11-09
 
 - **Lišta aktualizácie**: percento sťahovania (napr. `18 %`, `100 %`) sa už

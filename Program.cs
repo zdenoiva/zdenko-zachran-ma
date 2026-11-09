@@ -199,6 +199,13 @@ internal static class Program
                 text.AppendLine($"severity={report.Severity} title={report.Title}");
                 text.AppendLine("details=" + report.Details.Replace("\r", "").Replace("\n", " | "));
                 text.AppendLine("actions=" + string.Join(",", report.Actions));
+                text.AppendLine($"readRan={report.ReadTest?.Ran} readRating={report.ReadTest?.Rating} " +
+                                $"readMBps={report.ReadTest?.MbPerSecond:0.0} " +
+                                $"readErrors={report.ReadTest?.Errors} readTimeout={report.ReadTest?.TimedOut} " +
+                                $"readWorstMs={report.ReadTest?.WorstMs:0} readDirect={report.ReadTest?.Direct}");
+                text.AppendLine($"health={report.Smart?.HealthScore} life={report.Smart?.RemainingLife} " +
+                                $"smartRating={report.Smart?.Rating} hours={report.Smart?.PowerOnHours} " +
+                                $"smartText={report.SmartText}");
                 File.WriteAllText(logPath, text.ToString());
                 return 0;
             }

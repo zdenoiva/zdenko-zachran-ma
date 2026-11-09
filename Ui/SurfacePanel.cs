@@ -61,6 +61,20 @@ public sealed class SurfacePanel : UserControl
         if (!_loaded) await LoadDisksAsync();
     }
 
+    public bool SelectDiskNumber(int number)
+    {
+        for (int i = 0; i < _diskCombo.Items.Count; i++)
+        {
+            if (_diskCombo.Items[i] is DiskInfo disk && disk.Number == number)
+            {
+                if (_diskCombo.SelectedIndex == i) SelectDisk();
+                else _diskCombo.SelectedIndex = i;
+                return true;
+            }
+        }
+        return false;
+    }
+
     public async Task ReloadAsync()
     {
         _loaded = false;
