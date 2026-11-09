@@ -1,17 +1,18 @@
 {
-  "version": "2.9",
-  "tag": "v2.9",
-  "publishedAt": "2026-11-09T11:22:40Z",
+  "version": "2.10",
+  "tag": "v2.10",
+  "publishedAt": "2026-11-09T11:30:45Z",
   "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
-  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.9/ZachranaDisku.exe",
-  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.9/ZachranaDisku-Setup-2.9.exe",
-  "sha256": "fd0c3dec014ac1ddb6786574d68c0c6df0501545effabd21db883d2ccf3aa4f9",
-  "installerSha256": "b852d198a1e42598590c04991a5978cf248a8bc7d5a941e586c2c2c46e22ee90",
-  "size": 52335765,
-  "installerSize": 47292035,
+  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.10/ZachranaDisku.exe",
+  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.10/ZachranaDisku-Setup-2.10.exe",
+  "sha256": "31ca20935310d109013bfa97551af5f80f5a6f4818cab24d5f9e858705b57455",
+  "installerSha256": "58b29d7b70424f0776ce34afe50ebd62ffa851d443efc84a2c389548b4e42016",
+  "size": 52335830,
+  "installerSize": 47292420,
   "changelog": [
-    "Opravené spustenie programu po dokončení inštalácie.",
-    "Inštalátor teraz spúšťa `ZachranaDisku.exe` cez `ShellExecute`, takže",
-    "Opravená chyba `CreateProcess zlyhala; kód 740` na poslednej obrazovke"
+    "Opravené zmiznutie tlačidla **Aktualizovať** a **X** po načítaní disku.",
+    "Hlavička s dlhým popisom disku už nerozširuje celé okno do šírky.",
+    "Lišta aktualizácie zostáva po načítaní disku plne viditeľná a klikateľná.",
+    "Dopočítaná minimálna výška lišty, aby bolo X celé."
   ]
 }

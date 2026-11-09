@@ -1,5 +1,12 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.10] - 2026-11-09
+
+- Opravené zmiznutie tlačidla **Aktualizovať** a **X** po načítaní disku.
+- Hlavička s dlhým popisom disku už nerozširuje celé okno do šírky.
+- Lišta aktualizácie zostáva po načítaní disku plne viditeľná a klikateľná.
+- Dopočítaná minimálna výška lišty, aby bolo X celé.
+
 ## [2.9] - 2026-11-09
 
 - Opravené spustenie programu po dokončení inštalácie.

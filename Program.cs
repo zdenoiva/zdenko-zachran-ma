@@ -171,7 +171,8 @@ internal static class Program
                 path = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-ui.png");
             try
             {
-                using var form = new MainForm(smoke: true)
+                var loadDisks = args.Any(a => a.Equals("--loaddisks", StringComparison.OrdinalIgnoreCase));
+                using var form = new MainForm(smoke: !loadDisks)
                 {
                     Opacity = 1,
                     ShowInTaskbar = false
@@ -182,8 +183,19 @@ internal static class Program
                 if (args.Any(a => a.Equals("--boottab", StringComparison.OrdinalIgnoreCase)))
                     form.SelectTabForTest(2);
                 if (args.Any(a => a.Equals("--updatebanner", StringComparison.OrdinalIgnoreCase)))
+                {
+                    if (loadDisks)
+                    {
+                        for (int i = 0; i < 90; i++)
+                        {
+                            Application.DoEvents();
+                            Thread.Sleep(50);
+                        }
+                    }
                     form.ShowUpdateBannerForTest("9.9");
-                var loops = args.Any(a => a.Equals("--boottab", StringComparison.OrdinalIgnoreCase)) ? 140 : 40;
+                }
+                var loops = args.Any(a => a.Equals("--boottab", StringComparison.OrdinalIgnoreCase)) ? 140
+                    : loadDisks ? 200 : 40;
                 for (int i = 0; i < loops; i++)
                 {
                     Application.DoEvents();

@@ -125,6 +125,7 @@ public sealed class MainForm : Form
             ColumnCount = 1,
             RowCount = 4
         };
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -154,6 +155,7 @@ public sealed class MainForm : Form
             RowCount = 2,
             BackColor = Color.Transparent
         };
+        stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
         var titleRow = new FlowLayoutPanel
         {
@@ -280,6 +282,7 @@ public sealed class MainForm : Form
         _updateBanner.Dock = DockStyle.Fill;
         _updateBanner.AutoSize = false;
         _updateBanner.Height = 52;
+        _updateBanner.MinimumSize = new Size(0, 52);
         _updateBanner.BackColor = Theme.WarningSoft;
         _updateBanner.Padding = new Padding(18, 6, 12, 6);
         _updateBanner.Visible = false;
