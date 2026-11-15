@@ -609,7 +609,7 @@ public sealed class SurfacePanel : UserControl
         _info.Text =
             $"Disk {d.Number} · {d.Model} · {Fmt.Bytes(d.Size)} · " +
             $"{(string.IsNullOrWhiteSpace(d.PartitionStyle) ? "?" : d.PartitionStyle)} · {d.BusType}" +
-            (string.IsNullOrWhiteSpace(d.Serial) ? "" : " · S/N " + d.Serial);
+            (string.IsNullOrWhiteSpace(Fmt.Serial(d.Serial)) ? "" : " · S/N " + Fmt.Serial(d.Serial));
 
         var appDisk = VolumeMapper.GetDiskNumberForPath(Environment.ProcessPath ?? "");
         string blocked = "";
@@ -971,5 +971,6 @@ public sealed class SurfacePanel : UserControl
         Log.Write("Povrch: " + line);
     }
 }
+
 
 

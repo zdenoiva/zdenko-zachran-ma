@@ -1926,7 +1926,8 @@ public sealed class MainForm : Form
 
         var message =
             $"Opraviť NTFS na disku {entry.Letter}:?\n\n" +
-            $"Disk: {_location.Model}\nSériové číslo: {_location.Serial}\n" +
+            $"Disk: {_location.Model}\nSériové číslo: " +
+            $"{(string.IsNullOrWhiteSpace(Fmt.Serial(_location.Serial)) ? "neuvedené" : Fmt.Serial(_location.Serial))}\n" +
             $"Partícia: {Fmt.Bytes(_location.Length)}\n\n" +
             "Program spustí chkdsk /f, ktorý zapisuje do metadát. V ojedinelých prípadoch môže " +
             "premenovať alebo izolovať poškodené súbory. Predtým sa uloží záloha metadát.\n\n" +

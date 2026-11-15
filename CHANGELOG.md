@@ -1,5 +1,20 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.21] - 2026-11-15
+
+- **S.M.A.R.T. pre disky za USB-SATA mostíkmi a v klonovacích/dokovacích systémoch**:
+  - nové priame ATA čítanie cez SCSI ATA PASS-THROUGH (16 aj 12), ktoré obchádza
+    WMI a funguje tam, kde Windows SMART neposkytne
+  - načítajú sa atribúty ako v HD Tune: presunuté/nestabilné/neopraviteľné sektory,
+    teplota, hodiny, cykly napájania, neočakávané vypnutia, životnosť SSD
+  - každý disk sa čítá cez svoj `\\.\PhysicalDriveN`, takže v doku sa spracujú oba
+- Oprava falošne zlého zdravia: životnosť sa už neodvodzuje z normalizovaných
+  atribútov 173/177 (mohli ukázať napr. 32 % namiesto 100 %).
+- Sériové číslo samé nuly (bežné pri USB mostíkoch) sa už nezobrazuje ako
+  `0000000000000000`; použije sa disk číslo namiesto falošného S/N.
+- Overené na WDC WDS250G2B0A v USB doku: 25 atribútov, životnosť 100 %,
+  1 688 cyklov, 39 neočakávaných vypnutí, 0 vadných sektorov.
+
 ## [2.20] - 2026-11-15
 
 - **Oprava dlhého čakania „Zisťujem stav partície...“ pri disku bez partície**:

@@ -174,6 +174,44 @@ internal static class Program
             }
         }
 
+        if (args.Any(a => a.Equals("--atasmart", StringComparison.OrdinalIgnoreCase)))
+        {
+            var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-atasmart.log");
+            try
+            {
+                var numberArg = args.SkipWhile(a => !a.Equals("--atasmart", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                if (!int.TryParse(numberArg, out int diskNumber))
+                {
+                    File.WriteAllText(logPath, "ATASMART FAIL: chýba číslo disku");
+                    return 3;
+                }
+
+                var page = AtaSmart.ReadPage(diskNumber);
+                if (page is null)
+                {
+                    File.WriteAllText(logPath, $"ATASMART disk {diskNumber}: nedostupné\n" +
+                                               "error=" + AtaSmart.LastError);
+                    return 1;
+                }
+
+                var attributes = AtaSmart.ParseAttributes(page);
+                var lines = new List<string>
+                {
+                    $"ATASMART disk {diskNumber}: page={page.Length} attributes={attributes.Count}"
+                };
+                foreach (var a in attributes)
+                    lines.Add($"{a.Id}:{a.Name} value={a.Value} worst={a.Worst} raw={a.Raw}");
+                File.WriteAllLines(logPath, lines);
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(logPath, "ATASMART FAIL: " + ex);
+                return 1;
+            }
+        }
+
         if (args.Any(a => a.Equals("--diagnosedisk", StringComparison.OrdinalIgnoreCase)))
         {
             var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-diagnosedisk.log");

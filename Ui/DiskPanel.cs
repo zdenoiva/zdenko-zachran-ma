@@ -380,7 +380,7 @@ public sealed class DiskPanel : UserControl
         _diskInfo.Text =
             $"Disk {d.Number} · {d.Model}\n" +
             $"{Fmt.Bytes(d.Size)} · {(string.IsNullOrWhiteSpace(d.PartitionStyle) ? "?" : d.PartitionStyle)} · {d.BusType}" +
-            (string.IsNullOrWhiteSpace(d.Serial) ? "" : $" · S/N {d.Serial}") +
+            (string.IsNullOrWhiteSpace(Fmt.Serial(d.Serial)) ? "" : $" · S/N {Fmt.Serial(d.Serial)}") +
             (d.IsOffline ? " · offline" : "") +
             (d.IsReadOnly ? " · read-only" : "");
 
@@ -488,7 +488,7 @@ public sealed class DiskPanel : UserControl
         var text =
             $"Disk {d.Number} · {d.Model}\n" +
             $"{Fmt.Bytes(d.Size)} · {(string.IsNullOrWhiteSpace(d.PartitionStyle) ? "?" : d.PartitionStyle)} · {d.BusType}\n" +
-            (string.IsNullOrWhiteSpace(d.Serial) ? "" : $"S/N: {d.Serial}\n") +
+            (string.IsNullOrWhiteSpace(Fmt.Serial(d.Serial)) ? "" : $"S/N: {Fmt.Serial(d.Serial)}\n") +
             $"\nRežim: {(options.FullWipe ? "ÚPLNÉ PREPÍSANIE NULAMI" : "ODSTRÁNENIE PARTÍCIÍ")}\n" +
             (options.CreatePartition
                 ? $"Vytvoriť partíciu: {options.FileSystem} · {options.PartitionStyle} · " +
@@ -590,4 +590,5 @@ public sealed class DiskPanel : UserControl
         Log.Write("Disk: " + line);
     }
 }
+
 

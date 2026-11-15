@@ -20,4 +20,12 @@ public static class Fmt
     }
 
     public static string Hex(long value) => "0x" + value.ToString("X");
+
+    /// <summary>Skutočné sériové číslo; samé nuly (USB mostíky) berieme ako prázdne.</summary>
+    public static string Serial(string value)
+    {
+        var text = (value ?? "").Trim();
+        if (text.Length == 0) return "";
+        return text.Trim('0', ' ', '-', '_').Length == 0 ? "" : text;
+    }
 }

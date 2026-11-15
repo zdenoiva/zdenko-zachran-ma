@@ -216,6 +216,26 @@ foreach ($a in $attrs) {
                 }
                 ApplyAttributes(info);
             }
+
+            // USB-SATA mostíky často neposkytnú SMART cez WMI. Skúsime priamo ATA.
+            if (!info.Nvme)
+            {
+                var page = AtaSmart.ReadPage(diskNumber);
+                if (page is not null)
+                {
+                    var direct = AtaSmart.ParseAttributes(page);
+                    if (direct.Count > 0)
+                    {
+                        info.Attributes = direct;
+                        info.ReallocatedSectors = 0;
+                        info.PendingSectors = 0;
+                        info.UncorrectableSectors = 0;
+                        info.CrcErrors = 0;
+                        info.RemainingLife = -1;
+                        ApplyAttributes(info);
+                    }
+                }
+            }
         }
 
         if (!info.Available && !info.Nvme)
@@ -259,8 +279,7 @@ foreach ($a in $attrs) {
                     break;
                 case 173:
                 case 177:
-                    if (info.Wear <= 0 && attribute.Value is > 0 and < 100)
-                        info.Wear = 100 - attribute.Value;
+                    // Normalizovaná hodnota nie je percento opotrebenia; neodvodzujeme z nej životnosť.
                     break;
                 case 174:
                     if (info.UnsafeShutdowns <= 0) info.UnsafeShutdowns = attribute.Raw;
