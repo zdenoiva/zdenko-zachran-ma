@@ -1,19 +1,21 @@
 {
-  "version": "2.20",
-  "tag": "v2.20",
-  "publishedAt": "2026-11-15T15:18:18Z",
+  "version": "2.21",
+  "tag": "v2.21",
+  "publishedAt": "2026-11-15T15:47:58Z",
   "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
-  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.20/ZachranaDisku.exe",
-  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.20/ZachranaDisku-Setup-2.20.exe",
-  "sha256": "ae0a1b3c1c0a224af8b4f47c5f6c25a5e5da5d6020c6b2337bb6bce98fb14803",
-  "installerSha256": "96cd8147e0ba4f1738c1f346103956e75d8f4d0b7c065644ed28bd6188fabd15",
-  "size": 52383724,
-  "installerSize": 47342994,
+  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.21/ZachranaDisku.exe",
+  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.21/ZachranaDisku-Setup-2.21.exe",
+  "sha256": "2c9730b10acb0292937ff895d22bb68196909b5ef3189b5e02f27c7c9a7a0d7d",
+  "installerSha256": "0669258cf5b195f94114b96106250d017c7f392889494992ec04c83745eb25db",
+  "size": 52385987,
+  "installerSize": 47345798,
   "changelog": [
-    "**Oprava dlhého čakania „Zisťujem stav partície...“ pri disku bez partície**:",
-    "pri celom disku bez súborového systému sa už nespúšťa rýchly test čítania",
-    "S.M.A.R.T. má pri takomto disku limit **3 sekundy** namiesto 30; ak Windows",
-    "prázdny disk sa vyhodnotí za približne **2 sekundy**",
-    "Do logu sa zapisuje čas S.M.A.R.T. kontroly a rýchleho testu čítania,"
+    "**S.M.A.R.T. pre disky za USB-SATA mostíkmi a v klonovacích/dokovacích systémoch**:",
+    "nové priame ATA čítanie cez SCSI ATA PASS-THROUGH (16 aj 12), ktoré obchádza",
+    "načítajú sa atribúty ako v HD Tune: presunuté/nestabilné/neopraviteľné sektory,",
+    "každý disk sa čítá cez svoj `\\\\.\\PhysicalDriveN`, takže v doku sa spracujú oba",
+    "Oprava falošne zlého zdravia: životnosť sa už neodvodzuje z normalizovaných",
+    "Sériové číslo samé nuly (bežné pri USB mostíkoch) sa už nezobrazuje ako",
+    "Overené na WDC WDS250G2B0A v USB doku: 25 atribútov, životnosť 100 %,"
   ]
 }
