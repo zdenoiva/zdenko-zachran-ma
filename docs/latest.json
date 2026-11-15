@@ -1,21 +1,21 @@
 {
-  "version": "2.21",
-  "tag": "v2.21",
-  "publishedAt": "2026-11-15T15:47:58Z",
+  "version": "2.22",
+  "tag": "v2.22",
+  "publishedAt": "2026-11-15T15:57:19Z",
   "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
-  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.21/ZachranaDisku.exe",
-  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.21/ZachranaDisku-Setup-2.21.exe",
-  "sha256": "2c9730b10acb0292937ff895d22bb68196909b5ef3189b5e02f27c7c9a7a0d7d",
-  "installerSha256": "0669258cf5b195f94114b96106250d017c7f392889494992ec04c83745eb25db",
-  "size": 52385987,
-  "installerSize": 47345798,
+  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.22/ZachranaDisku.exe",
+  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.22/ZachranaDisku-Setup-2.22.exe",
+  "sha256": "e34f8d83c737ced6e813687bdda0403c3519510fd3744cd3c5d8f82ec6599628",
+  "installerSha256": "2ddeb0d73b1af06f06e057acfb32d4cb5c909dfb1e4ddcdb7b3e1f4cb271bf87",
+  "size": 52385993,
+  "installerSize": 47347989,
   "changelog": [
-    "**S.M.A.R.T. pre disky za USB-SATA mostíkmi a v klonovacích/dokovacích systémoch**:",
-    "nové priame ATA čítanie cez SCSI ATA PASS-THROUGH (16 aj 12), ktoré obchádza",
-    "načítajú sa atribúty ako v HD Tune: presunuté/nestabilné/neopraviteľné sektory,",
-    "každý disk sa čítá cez svoj `\\\\.\\PhysicalDriveN`, takže v doku sa spracujú oba",
-    "Oprava falošne zlého zdravia: životnosť sa už neodvodzuje z normalizovaných",
-    "Sériové číslo samé nuly (bežné pri USB mostíkoch) sa už nezobrazuje ako",
-    "Overené na WDC WDS250G2B0A v USB doku: 25 atribútov, životnosť 100 %,"
+    "**Inštalátor/aktualizácia už nekoliduje s bežiacou aplikáciou**:",
+    "pred kopírovaním súborov skontroluje, či `ZachranaDisku.exe` beží",
+    "ak áno, ponúkne: „Aplikácia práve beží. Ukončiť ju a pokračovať?“",
+    "po potvrdení ju najprv zavrie slušne (WM_CLOSE), potom v prípade potreby",
+    "ak ju zavrieť nemožno alebo používateľ odmietne, inštalácia sa **zruší**",
+    "pred samotným kopírovaním ešte raz overí, že aplikácia nebeží",
+    "tichá aktualizácia (`/AUTOUPDATE`) ukončí bežiacu aplikáciu automaticky"
   ]
 }
