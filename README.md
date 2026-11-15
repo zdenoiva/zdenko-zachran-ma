@@ -1,6 +1,6 @@
 # Zdenko, zachráň ma!
 
-**Verzia 2.22** · © 2026 **Zdenko Ivančík**
+**Verzia 2.23** · © 2026 **Zdenko Ivančík**
 
 Nekomerčné použitie je povolené. **Komerčné použitie je možné len s výslovným
 súhlasom autora.**
@@ -12,7 +12,7 @@ potvrdenia.
 - GitHub: <https://github.com/zdenoiva/zdenko-zachran-ma>
 - Releases: <https://github.com/zdenoiva/zdenko-zachran-ma/releases>
 - Stránka na stiahnutie: <https://zdenoiva.github.io/zdenko-zachran-ma/>
-- Aktuálna verzia: **2.22**
+- Aktuálna verzia: **2.23**
 
 ## Inštalácia alebo prenosné spustenie
 
@@ -20,7 +20,7 @@ potvrdenia.
   - **jeden súbor**, self-contained, nepotrebuje .NET ani inštaláciu
   - skopírujte ho na iný počítač a spustite
   - všetky potrebné natívne knižnice sa rozbalia dočasne automaticky
-- **Inštalátor:** `dist\ZachranaDisku-Setup-2.22.exe`
+- **Inštalátor:** `dist\ZachranaDisku-Setup-2.23.exe`
   - po spustení ponúkne dve možnosti:
     - **Nainštalovať do počítača** (Program Files, Štart, odinštalovanie cez
       Nastavenia → Aplikácie)
@@ -79,7 +79,8 @@ potvrdenia.
 - ATA/SATA: všetky SMART atribúty (5, 9, 12, 174, 187, 190/194, 197, 198, 199,
   231/233, 241/242) a zdravie podľa reálnych chýb
 - **USB-SATA mostíky a doku**: priame ATA S.M.A.R.T. čítanie (SCSI ATA PASS-THROUGH)
-  funguje aj tam, kde Windows SMART neposkytne — rovnaké atribúty ako v HD Tune
+  funguje aj tam, kde Windows SMART neposkytne — rovnaké atribúty ako v HD Tune;
+  pre každý disk v doku sa použije jeho skutočná SCSI adresa (PathId/TargetId/Lun)
 - ďalšie kroky sa zobrazia podľa výsledku:
   - skopírovať súbory
   - opraviť (`chkdsk`)
@@ -242,7 +243,7 @@ winget install JRSoftware.InnoSetup
 .\make-installer.ps1
 ```
 
-Výsledok: `dist\ZachranaDisku-Setup-2.22.exe`.
+Výsledok: `dist\ZachranaDisku-Setup-2.23.exe`.
 
 ## Vydanie novej verzie
 
@@ -265,7 +266,7 @@ Potom commitnite a pushnite `latest.json` a `CHANGELOG.md`:
 
 ```powershell
 git add latest.json CHANGELOG.md
-git commit -m "Release v2.22"
+git commit -m "Release v2.23"
 git push
 ```
 
@@ -309,6 +310,7 @@ Licenčné texty tretích strán: `THIRD_PARTY_NOTICES.md`.
 Program pracuje s diskovými zariadeniami a pri oprave zapisuje do metadát.
 Používate ho na vlastné riziko. Pred opravou si vždy skopírujte dôležité dáta.
 Záchrana má zmysel len dovtedy, kým sa prepísané dáta neprepíšu inými.
+
 
 
 

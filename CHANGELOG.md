@@ -1,5 +1,16 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.23] - 2026-11-15
+
+- **S.M.A.R.T. v dvojdiskových USB doku/klonovacom systéme**:
+  - pred ATA príkazom sa zisťuje skutočná SCSI adresa (`PathId / TargetId / Lun`)
+    cez `IOCTL_SCSI_GET_ADDRESS`
+  - tá sa nastaví do ATA PASS-THROUGH, takže druhý disk v doku sa už neadresuje
+    ako prvý (predtým oba používali Lun 0 — rovnaké SN/model aj SMART)
+  - do logu sa zapisuje adresa a dôvod zlyhania ATA čítania
+- Ak mostík ATA príkazy vôbec nepodporuje, log teraz obsahuje presnú SCSI chybu,
+  podľa ktorej sa dá doplniť špecifický protokol pre daný mostík.
+
 ## [2.22] - 2026-11-15
 
 - **Inštalátor/aktualizácia už nekoliduje s bežiacou aplikáciou**:

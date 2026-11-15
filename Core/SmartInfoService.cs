@@ -221,11 +221,18 @@ foreach ($a in $attrs) {
             if (!info.Nvme)
             {
                 var page = AtaSmart.ReadPage(diskNumber);
-                if (page is not null)
+                if (page is null)
+                {
+                    Log.Warn($"S.M.A.R.T. disk {diskNumber}: ATA čítanie zlyhalo " +
+                             $"(adresa {AtaSmart.LastAddress}): {AtaSmart.LastError}");
+                }
+                else
                 {
                     var direct = AtaSmart.ParseAttributes(page);
                     if (direct.Count > 0)
                     {
+                        Log.Info($"S.M.A.R.T. disk {diskNumber}: ATA OK, " +
+                                 $"{direct.Count} atribútov, adresa {AtaSmart.LastAddress}");
                         info.Attributes = direct;
                         info.ReallocatedSectors = 0;
                         info.PendingSectors = 0;

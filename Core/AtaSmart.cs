@@ -10,6 +10,7 @@ namespace NtfsRescue.Core;
 public static class AtaSmart
 {
     public static string LastError = "";
+    public static string LastAddress = "";
     private const uint GenericRead = 0x80000000;
     private const uint GenericWrite = 0x40000000;
     private const uint FileShareRead = 0x00000001;
@@ -17,6 +18,7 @@ public static class AtaSmart
     private const uint OpenExisting = 3;
     private const uint SmartRcvDriveData = 0x0007C088;
     private const uint IoctlScsiPassThroughDirect = 0x0004D014;
+    private const uint IoctlScsiGetAddress = 0x00041018;
     private const int PageSize = 512;
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
@@ -124,6 +126,28 @@ public static class AtaSmart
                 return null;
             }
 
+            byte pathId = 0;
+            byte targetId = 0;
+            byte lun = 0;
+            IntPtr address = Marshal.AllocHGlobal(8);
+            try
+            {
+                for (int i = 0; i < 8; i++) Marshal.WriteByte(address, i, 0);
+                if (DeviceIoControlPtr(handle, IoctlScsiGetAddress,
+                        IntPtr.Zero, 0, address, 8, out int addressReturned, IntPtr.Zero) &&
+                    addressReturned >= 8)
+                {
+                    pathId = Marshal.ReadByte(address, 5);
+                    targetId = Marshal.ReadByte(address, 6);
+                    lun = Marshal.ReadByte(address, 7);
+                }
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(address);
+            }
+            LastAddress = $"{pathId}/{targetId}/{lun}";
+
             int structSize = Marshal.SizeOf<ScsiPassThroughDirect>();
             int senseSize = 32;
             data = Marshal.AllocHGlobal(PageSize);
@@ -164,6 +188,9 @@ public static class AtaSmart
                 var packet = new ScsiPassThroughDirect
                 {
                     Length = (ushort)structSize,
+                    PathId = pathId,
+                    TargetId = targetId,
+                    Lun = lun,
                     CdbLength = variant.CdbLength,
                     SenseInfoLength = (byte)senseSize,
                     DataIn = 1,

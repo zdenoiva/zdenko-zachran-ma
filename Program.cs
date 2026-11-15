@@ -191,6 +191,7 @@ internal static class Program
                 if (page is null)
                 {
                     File.WriteAllText(logPath, $"ATASMART disk {diskNumber}: nedostupné\n" +
+                                               "address=" + AtaSmart.LastAddress + "\n" +
                                                "error=" + AtaSmart.LastError);
                     return 1;
                 }
@@ -198,7 +199,8 @@ internal static class Program
                 var attributes = AtaSmart.ParseAttributes(page);
                 var lines = new List<string>
                 {
-                    $"ATASMART disk {diskNumber}: page={page.Length} attributes={attributes.Count}"
+                    $"ATASMART disk {diskNumber}: page={page.Length} attributes={attributes.Count} " +
+                    $"address={AtaSmart.LastAddress}"
                 };
                 foreach (var a in attributes)
                     lines.Add($"{a.Id}:{a.Name} value={a.Value} worst={a.Worst} raw={a.Raw}");
