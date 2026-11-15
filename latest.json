@@ -1,21 +1,19 @@
 {
-  "version": "2.22",
-  "tag": "v2.22",
-  "publishedAt": "2026-11-15T15:57:19Z",
+  "version": "2.23",
+  "tag": "v2.23",
+  "publishedAt": "2026-11-15T18:44:19Z",
   "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
-  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.22/ZachranaDisku.exe",
-  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.22/ZachranaDisku-Setup-2.22.exe",
-  "sha256": "e34f8d83c737ced6e813687bdda0403c3519510fd3744cd3c5d8f82ec6599628",
-  "installerSha256": "2ddeb0d73b1af06f06e057acfb32d4cb5c909dfb1e4ddcdb7b3e1f4cb271bf87",
-  "size": 52385993,
-  "installerSize": 47347989,
+  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.23/ZachranaDisku.exe",
+  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.23/ZachranaDisku-Setup-2.23.exe",
+  "sha256": "7a203cb872cae1105b9775be6da6fbe61e74ec915840e278f9cf22eaa76ca4e3",
+  "installerSha256": "3b65f8bd057fcf8d9503270d8a426ef928deb095ebda1b835f1df7b0e2a8ec32",
+  "size": 52386321,
+  "installerSize": 47347093,
   "changelog": [
-    "**Inštalátor/aktualizácia už nekoliduje s bežiacou aplikáciou**:",
-    "pred kopírovaním súborov skontroluje, či `ZachranaDisku.exe` beží",
-    "ak áno, ponúkne: „Aplikácia práve beží. Ukončiť ju a pokračovať?“",
-    "po potvrdení ju najprv zavrie slušne (WM_CLOSE), potom v prípade potreby",
-    "ak ju zavrieť nemožno alebo používateľ odmietne, inštalácia sa **zruší**",
-    "pred samotným kopírovaním ešte raz overí, že aplikácia nebeží",
-    "tichá aktualizácia (`/AUTOUPDATE`) ukončí bežiacu aplikáciu automaticky"
+    "**S.M.A.R.T. v dvojdiskových USB doku/klonovacom systéme**:",
+    "pred ATA príkazom sa zisťuje skutočná SCSI adresa (`PathId / TargetId / Lun`)",
+    "tá sa nastaví do ATA PASS-THROUGH, takže druhý disk v doku sa už neadresuje",
+    "do logu sa zapisuje adresa a dôvod zlyhania ATA čítania",
+    "Ak mostík ATA príkazy vôbec nepodporuje, log teraz obsahuje presnú SCSI chybu,"
   ]
 }
