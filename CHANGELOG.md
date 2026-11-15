@@ -1,5 +1,17 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.22] - 2026-11-15
+
+- **Inštalátor/aktualizácia už nekoliduje s bežiacou aplikáciou**:
+  - pred kopírovaním súborov skontroluje, či `ZachranaDisku.exe` beží
+  - ak áno, ponúkne: „Aplikácia práve beží. Ukončiť ju a pokračovať?“
+  - po potvrdení ju najprv zavrie slušne (WM_CLOSE), potom v prípade potreby
+    vynútene ukončí a čaká na ukončenie
+  - ak ju zavrieť nemožno alebo používateľ odmietne, inštalácia sa **zruší**
+  - pred samotným kopírovaním ešte raz overí, že aplikácia nebeží
+  - tichá aktualizácia (`/AUTOUPDATE`) ukončí bežiacu aplikáciu automaticky
+    (bez dialógu), takže in-app aktualizácia prebehne spoľahlivo
+
 ## [2.21] - 2026-11-15
 
 - **S.M.A.R.T. pre disky za USB-SATA mostíkmi a v klonovacích/dokovacích systémoch**:

@@ -1,5 +1,5 @@
 #define MyAppName "Zdenko, zachráň ma!"
-#define MyAppVersion "2.21"
+#define MyAppVersion "2.22"
 #define MyAppPublisher "Zdenko Ivančík"
 #define MyAppExeName "ZachranaDisku.exe"
 #define MyAppId "{{80516B42-DD69-4D58-A61B-6C0C881B6894}"
@@ -31,7 +31,7 @@ SetupLogging=yes
 CloseApplications=yes
 RestartApplications=no
 AllowNoIcons=yes
-VersionInfoVersion=2.21.0.0
+VersionInfoVersion=2.22.0.0
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 VersionInfoCompany={#MyAppPublisher}
@@ -167,6 +167,80 @@ begin
     Confirm := False;
 end;
 
+function IsAppRunning: Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := Exec(ExpandConstant('{sys}\cmd.exe'),
+    '/c tasklist /FI "IMAGENAME eq {#MyAppExeName}" /NH | find /I "{#MyAppExeName}" >nul',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+end;
+
+function WaitForAppExit(Milliseconds: Integer): Boolean;
+var
+  I: Integer;
+begin
+  for I := 1 to (Milliseconds div 250) do
+  begin
+    if not IsAppRunning then
+    begin
+      Result := True;
+      Exit;
+    end;
+    Sleep(250);
+  end;
+  Result := not IsAppRunning;
+end;
+
+function CloseRunningApp: Boolean;
+var
+  ResultCode: Integer;
+begin
+  if not IsAppRunning then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  { Najprv slušné ukončenie (WM_CLOSE), potom nútené. }
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM {#MyAppExeName}',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if WaitForAppExit(8000) then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#MyAppExeName}',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := WaitForAppExit(5000);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := '';
+  NeedsRestart := False;
+  if not IsAppRunning then Exit;
+
+  if AutoUpdate then
+  begin
+    if not CloseRunningApp then
+      Result := 'Aplikáciu „{#MyAppName}“ sa nepodarilo ukončiť. Zavrite ju ručne a spustite inštaláciu znova.';
+    Exit;
+  end;
+
+  if MsgBox('Aplikácia „{#MyAppName}“ práve beží.' + #13#10 + #13#10 +
+            'Inštalácia musí najprv ukončiť bežiacu aplikáciu. ' +
+            'Ukončiť ju a pokračovať?', mbConfirmation, MB_YESNO) <> IDYES then
+  begin
+    Result := 'Inštalácia bola zrušená, pretože aplikácia je spustená.';
+    Exit;
+  end;
+
+  if not CloseRunningApp then
+    Result := 'Aplikáciu „{#MyAppName}“ sa nepodarilo ukončiť. Zavrite ju ručne a spustite inštaláciu znova.';
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Target: string;
@@ -174,6 +248,13 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
+    if IsAppRunning and not CloseRunningApp then
+    begin
+      MsgBox('Aplikácia stále beží. Zavrite ju a spustite inštaláciu znova.',
+        mbError, MB_OK);
+      Exit;
+    end;
+
     ExtractTemporaryFile('{#MyAppExeName}');
     Target := ExpandConstant('{app}\{#MyAppExeName}');
     if not CopyFile(ExpandConstant('{tmp}\{#MyAppExeName}'), Target, False) then
@@ -186,6 +267,7 @@ begin
     end;
   end;
 end;
+
 
 
 
