@@ -4,13 +4,14 @@ public static class AppInfo
 {
     public const string Name = "Zdenko, zachráň ma!";
     public const string ExeName = "ZachranaDisku";
-    public const string Version = "2.19.0";
-    public const string VersionDisplay = "2.19";
+    public const string Version = "2.20.0";
+    public const string VersionDisplay = "2.20";
     public const string Author = "Zdenko Ivančík";
     public const string Copyright = "© 2026 Zdenko Ivančík";
     public const string LicenseSummary =
         "Nekomerčné použitie je povolené. Komerčné použitie je možné len s výslovným súhlasom autora.";
 }
+
 
 
 

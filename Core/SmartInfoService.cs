@@ -71,11 +71,11 @@ public sealed class SmartInfo
 
 public static class SmartInfoService
 {
-    public static SmartInfo Query(int diskNumber, CancellationToken ct)
+    public static SmartInfo Query(int diskNumber, CancellationToken ct, int timeoutMs = 8000)
     {
         try
         {
-            return QueryAsync(diskNumber, ct).GetAwaiter().GetResult();
+            return QueryAsync(diskNumber, ct, timeoutMs).GetAwaiter().GetResult();
         }
         catch
         {
@@ -83,7 +83,8 @@ public static class SmartInfoService
         }
     }
 
-    public static async Task<SmartInfo> QueryAsync(int diskNumber, CancellationToken ct)
+    public static async Task<SmartInfo> QueryAsync(int diskNumber, CancellationToken ct,
+        int timeoutMs = 8000)
     {
         if (diskNumber < 0)
             return new SmartInfo { DisplayText = "S.M.A.R.T: nedostupné (obraz)" };
@@ -168,7 +169,7 @@ foreach ($a in $attrs) {
 } | ConvertTo-Json -Compress -Depth 5
 """;
 
-        var doc = await Ps.RunJsonAsync(script, ct, 30000).ConfigureAwait(false);
+        var doc = await Ps.RunJsonAsync(script, ct, timeoutMs).ConfigureAwait(false);
         if (doc is null)
         {
             if (!info.Nvme)

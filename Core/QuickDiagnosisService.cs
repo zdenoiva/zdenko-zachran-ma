@@ -73,13 +73,23 @@ public static class QuickDiagnosisService
         }
         else if (partition.DiskNumber >= 0)
         {
-            var smart = SmartInfoService.Query(partition.DiskNumber, ct);
+            var smartWatch = System.Diagnostics.Stopwatch.StartNew();
+            var smart = SmartInfoService.Query(partition.DiskNumber, ct,
+                partition.IsWholeDisk ? 3000 : 8000);
+            Log.Info($"Diagnostika {partition.Display}: S.M.A.R.T. {smartWatch.ElapsedMilliseconds} ms");
             bool virtualDisk = partition.BusType.Contains("Virtual", StringComparison.OrdinalIgnoreCase) ||
                                smart.Interface.Contains("Virtual", StringComparison.OrdinalIgnoreCase);
-            if (partition.DiskSize > 0 && !virtualDisk)
+            bool hasFilesystem = partition.FileSystem
+                is FileSystemKind.Ntfs or FileSystemKind.Fat32 or FileSystemKind.ExFat;
+            // Pri celom disku bez partície nemá čítanie veľký zmysel a môže zdržať.
+            bool skipRead = partition.IsWholeDisk && !hasFilesystem;
+            if (partition.DiskSize > 0 && !virtualDisk && !skipRead)
             {
+                var readWatch = System.Diagnostics.Stopwatch.StartNew();
                 var quickRead = QuickReadTest.Run(partition.DiskNumber, partition.DiskSize,
                     smart.MediaType, smart.Interface, ct);
+                Log.Info($"Diagnostika {partition.Display}: rýchly test čítania " +
+                         $"{readWatch.ElapsedMilliseconds} ms ({quickRead.Rating})");
                 smart.ReadTestRan = quickRead.Ran;
                 smart.ReadTestMbPerSecond = quickRead.MbPerSecond;
                 smart.ReadTestWorstMs = quickRead.WorstMs;

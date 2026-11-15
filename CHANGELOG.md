@@ -1,5 +1,16 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.20] - 2026-11-15
+
+- **Oprava dlhého čakania „Zisťujem stav partície...“ pri disku bez partície**:
+  - pri celom disku bez súborového systému sa už nespúšťa rýchly test čítania
+    (zbytočne zdržoval a pri prázdnom/USB disku mohol visieť)
+  - S.M.A.R.T. má pri takomto disku limit **3 sekundy** namiesto 30; ak Windows
+    neodpovie, karta ukáže „nedostupné“ a Sprievodca pokračuje
+  - prázdny disk sa vyhodnotí za približne **2 sekundy**
+- Do logu sa zapisuje čas S.M.A.R.T. kontroly a rýchleho testu čítania,
+  aby sa prípadné spomalenie dalo ľahšie nájsť.
+
 ## [2.19] - 2026-11-15
 
 - **Hlavný zoznam v Sprievodcovi zobrazuje všetky disky**, aj keď nemajú

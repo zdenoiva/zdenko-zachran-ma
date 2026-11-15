@@ -174,6 +174,50 @@ internal static class Program
             }
         }
 
+        if (args.Any(a => a.Equals("--diagnosedisk", StringComparison.OrdinalIgnoreCase)))
+        {
+            var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-diagnosedisk.log");
+            try
+            {
+                var numberArg = args.SkipWhile(a => !a.Equals("--diagnosedisk", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                if (!int.TryParse(numberArg, out int diskNumber))
+                {
+                    File.WriteAllText(logPath, "DIAGNOSEDISK FAIL: chýba číslo disku");
+                    return 3;
+                }
+
+                var parts = DiskCatalog.LoadAsync(CancellationToken.None).GetAwaiter().GetResult();
+                var p = parts.FirstOrDefault(x => x.DiskNumber == diskNumber && x.IsWholeDisk) ??
+                        parts.FirstOrDefault(x => x.DiskNumber == diskNumber);
+                if (p is null)
+                {
+                    File.WriteAllText(logPath, $"DIAGNOSEDISK FAIL: disk {diskNumber} sa nenašiel");
+                    return 3;
+                }
+
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                var report = QuickDiagnosisService.RunAsync(p, CancellationToken.None)
+                    .GetAwaiter().GetResult();
+                watch.Stop();
+                File.WriteAllText(logPath,
+                    $"disk={diskNumber} display={p.Display} whole={p.IsWholeDisk} " +
+                    $"fs={p.FileSystem} elapsedMs={watch.ElapsedMilliseconds}\n" +
+                    $"title={report.Title}\n" +
+                    $"details={report.Details.Replace("\r", "").Replace("\n", " | ")}\n" +
+                    $"actions={string.Join(",", report.Actions)} " +
+                    $"disabled={string.Join(",", report.DisabledActions)}\n" +
+                    $"smartAvailable={report.SmartAvailable} smartText={report.SmartText}\n" +
+                    $"readRan={report.ReadTest?.Ran} readRating={report.ReadTest?.Rating}");
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(logPath, "DIAGNOSEDISK FAIL: " + ex);
+                return 1;
+            }
+        }
+
         if (args.Any(a => a.Equals("--diagnose", StringComparison.OrdinalIgnoreCase)))
         {
             var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-diagnose.log");

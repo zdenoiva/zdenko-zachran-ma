@@ -1143,7 +1143,7 @@ public sealed class MainForm : Form
             : null;
 
         _wizard.ShowEmpty();
-        _wizard.SetBusy(true, "Zisťujem stav partície...");
+        _wizard.SetBusy(true, partition.IsWholeDisk ? "Zisťujem stav disku..." : "Zisťujem stav partície...");
 
         bool ntfsAdvanced = _selectedEntry is not null;
         _btnDiagnose.Enabled = ntfsAdvanced;
@@ -1157,11 +1157,11 @@ public sealed class MainForm : Form
         _volumeInfo.ForeColor = Theme.SidebarText;
         _statusLabel.Text = partition.IsSystem
             ? "Toto je systémová partícia. Oprava je zablokovaná."
-            : "Zisťujem stav partície...";
+            : partition.IsWholeDisk ? "Zisťujem stav disku..." : "Zisťujem stav partície...";
 
         try
         {
-            _wizard.SetBusy(true, "Zisťujem stav partície...");
+            _wizard.SetBusy(true, partition.IsWholeDisk ? "Zisťujem stav disku..." : "Zisťujem stav partície...");
             var report = await QuickDiagnosisService.RunAsync(partition, CancellationToken.None);
             if (version != _selectionVersion) return;
             _wizard.SetReport(report);
@@ -2316,5 +2316,6 @@ public sealed class MainForm : Form
         base.Dispose(disposing);
     }
 }
+
 
 
