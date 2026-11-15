@@ -44,6 +44,22 @@ public sealed class DiskPanel : UserControl
         if (!_loaded) await LoadDisksAsync();
     }
 
+    public bool SelectDiskNumber(int number)
+    {
+        for (int i = 0; i < _diskCombo.Items.Count; i++)
+        {
+            if (_diskCombo.Items[i] is DiskInfo disk && disk.Number == number)
+            {
+                if (_diskCombo.SelectedIndex == i) SelectDisk();
+                else _diskCombo.SelectedIndex = i;
+                _chkCreate.Checked = true;
+                return true;
+            }
+        }
+        _chkCreate.Checked = true;
+        return false;
+    }
+
     private void BuildUi()
     {
         var root = new TableLayoutPanel

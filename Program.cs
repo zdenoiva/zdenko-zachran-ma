@@ -323,6 +323,38 @@ internal static class Program
                         Thread.Sleep(50);
                     }
                 }
+                var wizardDiskArg = args.SkipWhile(a => !a.Equals("--wizarddisk", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                if (int.TryParse(wizardDiskArg, out int wizardDisk))
+                {
+                    for (int i = 0; i < 120; i++)
+                    {
+                        Application.DoEvents();
+                        Thread.Sleep(50);
+                    }
+                    form.SelectDiskForTest(wizardDisk);
+                    for (int i = 0; i < 240; i++)
+                    {
+                        Application.DoEvents();
+                        Thread.Sleep(50);
+                    }
+                }
+                var actionArg = args.SkipWhile(a => !a.Equals("--wizardaction", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                if (Enum.TryParse<RecommendedAction>(actionArg, true, out var wizardAction))
+                {
+                    var task = form.RunWizardActionForTestAsync(wizardAction);
+                    while (!task.IsCompleted)
+                    {
+                        Application.DoEvents();
+                        Thread.Sleep(20);
+                    }
+                    for (int i = 0; i < 40; i++)
+                    {
+                        Application.DoEvents();
+                        Thread.Sleep(50);
+                    }
+                }
                 var loops = args.Any(a => a.Equals("--boottab", StringComparison.OrdinalIgnoreCase)) ? 140
                     : args.Any(a => a.Equals("--disktab", StringComparison.OrdinalIgnoreCase)) ? 140
                     : args.Any(a => a.Equals("--surfacetab", StringComparison.OrdinalIgnoreCase)) ? 140

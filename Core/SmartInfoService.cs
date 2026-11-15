@@ -221,6 +221,21 @@ foreach ($a in $attrs) {
             return new SmartInfo { DisplayText = "S.M.A.R.T: nedostupné" };
 
         info.Available = true;
+
+        // Windows niekedy vráti len "Healthy" bez akýchkoľvek čísel.
+        // V takom prípade je lepšie priznať, že S.M.A.R.T. údaje nemáme.
+        bool hasData = info.Nvme || info.Attributes.Count > 0 ||
+                       info.PowerOnHours > 0 || info.Temperature > 0 || info.Wear > 0 ||
+                       info.ReallocatedSectors > 0 || info.PendingSectors > 0 ||
+                       info.UncorrectableSectors > 0 || info.ReadErrorsTotal > 0 ||
+                       info.WriteErrorsTotal > 0;
+        if (!hasData)
+        {
+            info.Available = false;
+            info.DisplayText = "S.M.A.R.T: nedostupné (Windows nehlási údaje)";
+            return info;
+        }
+
         ComposeDisplay(info);
         return info;
     }

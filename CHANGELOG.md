@@ -1,5 +1,24 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.19] - 2026-11-15
+
+- **Hlavný zoznam v Sprievodcovi zobrazuje všetky disky**, aj keď nemajú
+  použiteľnú partíciu — nový, prázdny, RAW alebo offline disk.
+  - taký disk sa zobrazí ako „Disk N · celý disk“ a dá sa vybrať
+  - nepoužiteľné kroky sú **šedé** (napr. offline disk)
+- **Sprievodca pre prázdny/RAW disk** už neponúka kopírovanie súborov ani opravu:
+  - **Plná kontrola povrchu**
+  - **Vytvoriť partíciu** — otvorí záložku Disk s vybraným diskom
+    a predvyplnenou voľbou vytvoriť jednu partíciu
+  - **Záchrana súborov** (hĺbková) pre prípad, že tam predtým boli dáta
+- RAW partícia s tabuľkou partícií ponúka aj kontrolu povrchu.
+- Offline disk upozorní „Disk je offline“ a všetky akcie sú nedostupné.
+- Disk len na čítanie ponúkne kontrolu povrchu a záchranu, ale vytvorenie
+  partície je zablokované.
+- Rýchly test čítania sa preskakuje pre virtuálne disky (VHD), aby sa
+  nezobrazovali nerealistické rýchlosti z pamäte.
+- Tlačidlá v Sprievodcovi už nemajú pevné čísla 1/2/3 — menia sa podľa situácie.
+
 ## [2.18] - 2026-11-09
 
 - **Oprava falošného „Windows 10/11: CHÝBA“** na niektorých PC s Windows 11:

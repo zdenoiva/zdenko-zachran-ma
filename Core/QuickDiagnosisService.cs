@@ -23,7 +23,8 @@ public enum RecommendedAction
     AssignLetter,
     TryNtfs,
     TryFat32,
-    SurfaceScan
+    SurfaceScan,
+    CreatePartition
 }
 
 public sealed class QuickDiagnosisReport
@@ -39,6 +40,7 @@ public sealed class QuickDiagnosisReport
     public SmartInfo? Smart;
     public QuickReadResult? ReadTest;
     public readonly List<RecommendedAction> Actions = new();
+    public readonly List<RecommendedAction> DisabledActions = new();
     public bool HasLetter;
     public bool BootFromBackup;
     public bool NtfsReadable;
@@ -72,7 +74,9 @@ public static class QuickDiagnosisService
         else if (partition.DiskNumber >= 0)
         {
             var smart = SmartInfoService.Query(partition.DiskNumber, ct);
-            if (partition.DiskSize > 0)
+            bool virtualDisk = partition.BusType.Contains("Virtual", StringComparison.OrdinalIgnoreCase) ||
+                               smart.Interface.Contains("Virtual", StringComparison.OrdinalIgnoreCase);
+            if (partition.DiskSize > 0 && !virtualDisk)
             {
                 var quickRead = QuickReadTest.Run(partition.DiskNumber, partition.DiskSize,
                     smart.MediaType, smart.Interface, ct);
@@ -92,23 +96,31 @@ public static class QuickDiagnosisService
             report.SmartAvailable = smart.Available;
         }
 
-        switch (partition.FileSystem)
+        if (partition.IsWholeDisk &&
+            partition.FileSystem is FileSystemKind.Raw or FileSystemKind.Unknown)
         {
-            case FileSystemKind.Ntfs:
-                DiagnoseNtfs(partition, report, ct);
-                break;
-            case FileSystemKind.Fat32:
-                DiagnoseFat32(partition, report, ct);
-                break;
-            case FileSystemKind.ExFat:
-                report.Severity = DiagnosisSeverity.Info;
-                report.Title = "exFAT – zatiaľ nepodporované";
-                report.Details = "Táto verzia vie čítať a opravovať NTFS a FAT32. " +
-                                 "exFAT je rozpoznaný, ale záchrana preň zatiaľ nie je implementovaná.";
-                break;
-            default:
-                DiagnoseRaw(report);
-                break;
+            DiagnoseEmptyDisk(partition, report);
+        }
+        else
+        {
+            switch (partition.FileSystem)
+            {
+                case FileSystemKind.Ntfs:
+                    DiagnoseNtfs(partition, report, ct);
+                    break;
+                case FileSystemKind.Fat32:
+                    DiagnoseFat32(partition, report, ct);
+                    break;
+                case FileSystemKind.ExFat:
+                    report.Severity = DiagnosisSeverity.Info;
+                    report.Title = "exFAT – zatiaľ nepodporované";
+                    report.Details = "Táto verzia vie čítať a opravovať NTFS a FAT32. " +
+                                     "exFAT je rozpoznaný, ale záchrana preň zatiaľ nie je implementovaná.";
+                    break;
+                default:
+                    DiagnoseRaw(report);
+                    break;
+            }
         }
 
         if (report.ReadTest is { Ran: true } read &&
@@ -367,6 +379,43 @@ public static class QuickDiagnosisService
                          "Ak viete, aký systém tam bol, vyberte ho. Pri „Neviem“ program vyskúša oba parsery len na čítanie.";
         report.Actions.Add(RecommendedAction.TryNtfs);
         report.Actions.Add(RecommendedAction.TryFat32);
+        report.Actions.Add(RecommendedAction.SurfaceScan);
         report.Actions.Add(RecommendedAction.DeepScan);
+    }
+
+    private static void DiagnoseEmptyDisk(DiskPartition partition, QuickDiagnosisReport report)
+    {
+        bool offline = partition.IsOffline || partition.DiskIsOffline;
+        bool readOnly = partition.IsReadOnly || partition.DiskIsReadOnly;
+
+        report.Severity = offline || readOnly ? DiagnosisSeverity.Warning : DiagnosisSeverity.Info;
+        report.Title = offline
+            ? "Disk je offline"
+            : readOnly
+                ? "Disk je len na čítanie"
+                : "Disk je prázdny alebo bez partície";
+
+        var details = "Na disku sa nenašla použiteľná partícia, preto tu nie je čo kopírovať ani opravovať.\n\n" +
+                      "Môžete spustiť kontrolu povrchu, vytvoriť novú partíciu alebo skúsiť hĺbkovú záchranu súborov.";
+        if (offline)
+            details += "\n\nDisk je offline — najprv ho pripojte v Správe diskov.";
+        else if (readOnly)
+            details += "\n\nDisk je len na čítanie, vytvorenie partície bude zablokované.";
+        report.Details = details;
+
+        report.Actions.Add(RecommendedAction.SurfaceScan);
+        report.Actions.Add(RecommendedAction.CreatePartition);
+        report.Actions.Add(RecommendedAction.DeepScan);
+
+        if (offline)
+        {
+            report.DisabledActions.Add(RecommendedAction.SurfaceScan);
+            report.DisabledActions.Add(RecommendedAction.CreatePartition);
+            report.DisabledActions.Add(RecommendedAction.DeepScan);
+        }
+        else if (readOnly)
+        {
+            report.DisabledActions.Add(RecommendedAction.CreatePartition);
+        }
     }
 }

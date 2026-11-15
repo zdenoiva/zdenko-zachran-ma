@@ -30,6 +30,7 @@ public sealed class MainForm : Form
     private TabPage _recoveryTab = null!;
     private TabPage _repairTab = null!;
     private TabPage _surfaceTab = null!;
+    private TabPage _diskTab = null!;
 
     private readonly Button _btnDiagnose = new();
     private readonly Button _btnSaveDiag = new();
@@ -127,8 +128,9 @@ public sealed class MainForm : Form
     {
         for (int i = 0; i < _volumeCombo.Items.Count; i++)
         {
-            if (_volumeCombo.Items[i] is VolumeEntry entry &&
-                char.ToUpperInvariant(entry.Letter) == char.ToUpperInvariant(letter))
+            if (_volumeCombo.Items[i] is DiskPartition partition &&
+                partition.HasLetter &&
+                char.ToUpperInvariant(partition.DriveLetter[0]) == char.ToUpperInvariant(letter))
             {
                 _volumeCombo.SelectedIndex = i;
                 return true;
@@ -136,6 +138,24 @@ public sealed class MainForm : Form
         }
         return false;
     }
+
+    /// <summary>Testovací vstup: vyberie celý disk podľa čísla a spustí diagnostiku.</summary>
+    public bool SelectDiskForTest(int diskNumber)
+    {
+        for (int i = 0; i < _volumeCombo.Items.Count; i++)
+        {
+            if (_volumeCombo.Items[i] is DiskPartition partition &&
+                partition.DiskNumber == diskNumber)
+            {
+                _volumeCombo.SelectedIndex = i;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Task RunWizardActionForTestAsync(RecommendedAction action)
+        => OnWizardActionAsync(action);
 
     public void ShowUpdateBannerForTest(string version)
     {
@@ -612,6 +632,7 @@ public sealed class MainForm : Form
             BackColor = Theme.Background,
             Padding = new Padding(0)
         };
+        _diskTab = page;
         page.Controls.Add(_disk);
         return page;
     }
@@ -1219,11 +1240,19 @@ public sealed class MainForm : Form
                 break;
 
             case RecommendedAction.SurfaceScan:
+                _tabs.SelectedTab = _surfaceTab;
                 await _surface.EnsureLoadedAsync();
                 _surface.SelectDiskNumber(partition.DiskNumber);
-                _tabs.SelectedTab = _surfaceTab;
                 _statusLabel.Text =
                     "Spustite „Spustiť kontrolu povrchu“ — overí rýchlosť a vadné bloky celého disku.";
+                break;
+
+            case RecommendedAction.CreatePartition:
+                _tabs.SelectedTab = _diskTab;
+                await _disk.EnsureLoadedAsync();
+                _disk.SelectDiskNumber(partition.DiskNumber);
+                _statusLabel.Text =
+                    "Vyberte štýl disku a systém súborov, potom spustite vytvorenie partície.";
                 break;
         }
     }

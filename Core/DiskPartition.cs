@@ -32,6 +32,7 @@ public sealed class DiskPartition
     public bool DiskIsOffline;
     public bool DiskIsReadOnly;
     public string BusType = "";
+    public bool IsWholeDisk;
     public FileSystemKind FileSystem = FileSystemKind.Unknown;
 
     public const string EspGptType = "c12a7328-f81f-11d2-ba4b-00a0c93ec93b";
@@ -75,7 +76,7 @@ public sealed class DiskPartition
 
             var parts = new List<string>
             {
-                $"Disk {DiskNumber} · partícia {PartitionNumber}",
+                IsWholeDisk ? $"Disk {DiskNumber} · celý disk" : $"Disk {DiskNumber} · partícia {PartitionNumber}",
                 Fmt.Bytes(Length),
                 FileSystem.ToSlovak()
             };

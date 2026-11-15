@@ -113,6 +113,43 @@ public static class DiskCatalog
             list.Add(dp);
         }
 
+        // Disky bez použiteľnej partície (nový, prázdny, RAW alebo offline disk)
+        // zobrazíme ako jeden celok, aby sa dali vybrať v Sprievodcovi.
+        foreach (var (diskNumber, disk) in disks)
+        {
+            if (disk.Size <= 0) continue;
+            if (byDisk.TryGetValue(diskNumber, out var visible) && visible.Count > 0) continue;
+
+            bool rawStyle = string.IsNullOrWhiteSpace(disk.Style) ||
+                            disk.Style.Equals("RAW", StringComparison.OrdinalIgnoreCase);
+            byDisk[diskNumber] = new List<DiskPartition>
+            {
+                new()
+                {
+                    DiskNumber = diskNumber,
+                    PartitionNumber = 0,
+                    Offset = 0,
+                    Length = disk.Size,
+                    SectorSize = disk.Sector,
+                    DiskSize = disk.Size,
+                    Model = disk.Model,
+                    Serial = disk.Serial,
+                    PartitionType = rawStyle ? "Bez partícií" : "Bez použiteľnej partície",
+                    PartitionStyle = disk.Style,
+                    DiskGuid = disk.Guid,
+                    DiskSignature = disk.Signature,
+                    DiskIsBoot = disk.IsBoot,
+                    DiskIsSystem = disk.IsSystem,
+                    DiskIsOffline = disk.IsOffline,
+                    DiskIsReadOnly = disk.IsReadOnly,
+                    IsOffline = disk.IsOffline,
+                    IsReadOnly = disk.IsReadOnly,
+                    BusType = disk.BusType,
+                    IsWholeDisk = true
+                }
+            };
+        }
+
         foreach (var (diskNumber, list) in byDisk)
         {
             ct.ThrowIfCancellationRequested();
@@ -131,7 +168,6 @@ public static class DiskCatalog
                     p.FileSystem = p.FileSystem == FileSystemKind.Unknown ? FileSystemKind.Raw : p.FileSystem;
             }
         }
-
         foreach (var list in byDisk.Values) result.AddRange(list);
         result.Sort((a, b) => a.DiskNumber != b.DiskNumber
             ? a.DiskNumber.CompareTo(b.DiskNumber)

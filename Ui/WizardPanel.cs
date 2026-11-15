@@ -14,6 +14,7 @@ public sealed class WizardPanel : UserControl
     private readonly Label _lblHint = new();
     private readonly Panel _card = new();
     private readonly SmartHealthControl _smartCard = new();
+    private readonly HashSet<Button> _disabledActionButtons = new();
     private bool _busy;
 
     public event Action<RecommendedAction>? ActionSelected;
@@ -142,12 +143,14 @@ public sealed class WizardPanel : UserControl
         _smartCard.SetData(null);
         _card.BackColor = Theme.Surface;
         _actions.Controls.Clear();
+        _disabledActionButtons.Clear();
     }
 
     public void SetBusy(bool busy, string? text = null)
     {
         _busy = busy;
-        foreach (Control c in _actions.Controls) c.Enabled = !busy;
+        foreach (Control c in _actions.Controls)
+            c.Enabled = !busy && !_disabledActionButtons.Contains((Button)c);
         if (text is not null) _lblDetails.Text = text;
     }
 
@@ -214,30 +217,44 @@ public sealed class WizardPanel : UserControl
         _lblTitle.ForeColor = Theme.Text;
 
         _actions.Controls.Clear();
+        _disabledActionButtons.Clear();
         int index = 0;
         foreach (var action in report.Actions.Distinct())
         {
+            bool disabled = report.DisabledActions.Contains(action);
             var button = index == 0 ? Theme.PrimaryButton(LabelFor(action)) : Theme.SecondaryButton(LabelFor(action));
             button.Click += (_, _) => ActionSelected?.Invoke(action);
+            if (disabled)
+            {
+                button.Enabled = false;
+                button.BackColor = Theme.SurfaceAlt;
+                button.ForeColor = Theme.Muted;
+                button.FlatAppearance.BorderColor = Theme.Border;
+                button.FlatAppearance.BorderSize = 1;
+                button.Cursor = Cursors.Default;
+                _disabledActionButtons.Add(button);
+            }
             _actions.Controls.Add(button);
             index++;
         }
 
         if (_busy)
-            foreach (Control c in _actions.Controls) c.Enabled = false;
+            foreach (Control c in _actions.Controls)
+                c.Enabled = false;
     }
 
     private static string LabelFor(RecommendedAction action) => action switch
     {
-        RecommendedAction.CopyFiles => "1. Skopírovať súbory",
-        RecommendedAction.Repair => "2. Opraviť",
-        RecommendedAction.DeepScan => "3. Hĺbková záchrana",
+        RecommendedAction.CopyFiles => "Skopírovať súbory",
+        RecommendedAction.Repair => "Opraviť",
+        RecommendedAction.DeepScan => "Záchrana súborov",
         RecommendedAction.RestoreBoot => "Obnoviť boot sector",
         RecommendedAction.RestoreFat => "Obnoviť FAT1 z FAT2",
         RecommendedAction.AssignLetter => "Priradiť písmeno",
         RecommendedAction.TryNtfs => "Skúsiť NTFS",
         RecommendedAction.TryFat32 => "Skúsiť FAT32",
         RecommendedAction.SurfaceScan => "Plná kontrola povrchu",
+        RecommendedAction.CreatePartition => "Vytvoriť partíciu",
         _ => action.ToString()
     };
 }
