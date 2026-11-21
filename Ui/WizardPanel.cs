@@ -109,6 +109,8 @@ public sealed class WizardPanel : UserControl
         cardLayout.SetRowSpan(_smartCard, 2);
 
         _card.Controls.Add(cardLayout);
+        _card.Resize += (_, _) => FitTextWidth();
+        FitTextWidth();
 
         _actions.Dock = DockStyle.Top;
         _actions.AutoSize = true;
@@ -162,6 +164,7 @@ public sealed class WizardPanel : UserControl
             return;
         }
 
+        FitTextWidth();
         _lblPartition.Text = report.Partition.Display + "  ·  " + report.Partition.Model;
         _lblTitle.Text = report.Title;
         _lblDetails.Text = report.Details;
@@ -181,8 +184,9 @@ public sealed class WizardPanel : UserControl
         }
         else if (report.SmartAlert)
         {
-            _lblSmart.BackColor = Theme.DangerSoft;
-            _lblSmart.ForeColor = Theme.Danger;
+            bool critical = report.Smart?.ReplacementRecommended == true;
+            _lblSmart.BackColor = critical ? Theme.DangerSoft : Theme.WarningSoft;
+            _lblSmart.ForeColor = critical ? Theme.Danger : Theme.Warning;
         }
         else
         {
@@ -247,6 +251,18 @@ public sealed class WizardPanel : UserControl
         if (_busy)
             foreach (Control c in _actions.Controls)
                 c.Enabled = false;
+    }
+
+    private void FitTextWidth()
+    {
+        int available = _card.ClientSize.Width - _card.Padding.Horizontal - 58 - 354 - 16;
+        available = Math.Clamp(available, 260, 1000);
+        var max = new Size(available, 0);
+        if (_lblDetails.MaximumSize.Width == available) return;
+        _lblDetails.MaximumSize = max;
+        _lblTitle.MaximumSize = max;
+        _lblPartition.MaximumSize = max;
+        _lblSmart.MaximumSize = max;
     }
 
     private static string LabelFor(RecommendedAction action) => action switch

@@ -61,7 +61,9 @@ public sealed class AboutPanel : UserControl
             "prenosnú verziu a po zavretí programu sa sám aktualizuje.\n" +
             "14. Pri pomalom čítaní alebo vysokom počte hodín program zníži zdravie disku, " +
             "upozorní na výmenu a ponúkne plnú kontrolu povrchu.\n" +
-            "15. Sprievodca zobrazí aj disky bez partície (nový, prázdny, RAW, offline). " +
+            "15. Každý nález v S.M.A.R.T. (CRC, sektory, teplota, vek, opotrebenie, " +
+            "náhradné bloky) je vľavo vysvetlený vrátane rizika a odporúčaného riešenia.\n" +
+            "16. Sprievodca zobrazí aj disky bez partície (nový, prázdny, RAW, offline). " +
             "Pre prázdny disk ponúkne kontrolu povrchu, vytvorenie partície a záchranu " +
             "súborov; nepoužiteľné kroky sú šedé."));
 

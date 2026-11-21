@@ -351,6 +351,25 @@ internal static class SelfTest
         Check(veryOld.ReplacementRecommended, "veľmi vysoký počet hodín odporúča výmenu disku");
         Check(veryOld.DisplayText.Contains("Odporúčaná výmena disku", StringComparison.Ordinal),
             "text pri veľmi starom disku obsahuje odporúčanie výmeny");
+
+        var crc = new SmartInfo
+        {
+            Available = true,
+            Health = "Healthy",
+            Status = "OK",
+            PowerOnHours = 2_056,
+            CrcErrors = 1
+        };
+        SmartInfoService.ComposeDisplay(crc);
+        Check(crc.HasAlert, "CRC chyba vytvorí upozornenie");
+        Check(crc.DisplayText.Contains("CRC", StringComparison.Ordinal),
+            "upozornenie obsahuje CRC");
+        Check(crc.HealthScore == 94, "CRC zníži zdravie na 94 %");
+        Check(crc.Rating == SmartRating.Good, "CRC samo o sebe neznamená výmenu");
+        var advice = SmartInfoService.BuildAdvice(crc);
+        Check(advice.Any(line => line.Contains("CRC", StringComparison.Ordinal) &&
+                                 line.Contains("kábel", StringComparison.Ordinal)),
+            "vysvetlenie CRC odporúča skontrolovať kábel");
     }
 
     private static void TestSystemFileDetection()

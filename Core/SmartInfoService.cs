@@ -436,6 +436,10 @@ foreach ($a in $attrs) {
             reasons.Add($"chyby média: {info.MediaErrors}");
             replacement = true;
         }
+        if (info.CrcErrors > 0)
+        {
+            reasons.Add($"chyby CRC: {info.CrcErrors} – skontrolujte kábel/port");
+        }
         if (info.AvailableSpare >= 0 && info.SpareThreshold > 0 &&
             info.AvailableSpare < info.SpareThreshold)
         {
@@ -469,10 +473,15 @@ foreach ($a in $attrs) {
 
         info.HasAlert = reasons.Count > 0;
         info.ReplacementRecommended = replacement || info.Rating == SmartRating.Bad;
+        if (!info.ReplacementRecommended && reasons.Count > 0 && info.HealthScore > 94)
+            ApplyRating(info, 94);
         if (info.HasAlert)
         {
             info.AlertReason = string.Join("; ", reasons);
-            info.DisplayText = "S.M.A.R.T: ALERT – " + info.AlertReason +
+            info.DisplayText = (info.ReplacementRecommended
+                                   ? "S.M.A.R.T: ALERT – "
+                                   : "S.M.A.R.T: UPOZORNENIE – ") +
+                               info.AlertReason +
                                " · " + uptime +
                                (info.ReplacementRecommended
                                    ? " · Odporúčaná výmena disku"
@@ -484,6 +493,76 @@ foreach ($a in $attrs) {
                                (info.HealthScore >= 0 ? $" {info.HealthScore} %" : "") +
                                $" · {uptime}";
         }
+    }
+
+    /// <summary>Vysvetlenie zistených SMART problémov pre ľavý popis v Sprievodcovi.</summary>
+    public static List<string> BuildAdvice(SmartInfo info)
+    {
+        var lines = new List<string>();
+
+        if (info.PendingSectors > 0)
+            lines.Add($"• Nestabilné sektory ({info.PendingSectors:N0}): sektory, ktoré sa nedajú " +
+                      "spoľahlivo prečítať. Hrozí strata dát. Riešenie: ihneď zálohovať, spustiť " +
+                      "kontrolu a opravu povrchu; ak problémy pretrvávajú, disk vymeniť.");
+
+        if (info.UncorrectableSectors > 0)
+            lines.Add($"• Neopraviteľné sektory ({info.UncorrectableSectors:N0}): trvalo poškodené " +
+                      "sektory. Riziko straty dát. Riešenie: zálohovať a disk vymeniť.");
+
+        if (info.ReallocatedSectors > 0)
+            lines.Add($"• Presunuté sektory ({info.ReallocatedSectors:N0}): disk našiel chybné " +
+                      "sektory a nahradil ich náhradnými. Ak počet rastie, disk sa zhoršuje. " +
+                      "Riešenie: zálohovať, sledovať počet a pri raste disk vymeniť.");
+
+        if (info.MediaErrors > 0)
+            lines.Add($"• Chyby média ({info.MediaErrors:N0}): poškodené alebo neopraviteľné " +
+                      "bloky. Riziko straty dát. Riešenie: zálohovať a pri ďalšom raste vymeniť.");
+
+        if (info.CrcErrors > 0)
+            lines.Add($"• S.M.A.R.T.: CRC chyby prenosu ({info.CrcErrors:N0}) — zvyčajne kábel, " +
+                      "SATA/USB port alebo mostík, nie plotňa. Riziko výpadkov a chýb čítania. " +
+                      "Riešenie: vymeniť kábel, skúsiť iný port; pri raste riešiť mostík/disk.");
+
+        if (info.Temperature > (info.Nvme ? 70 : 55))
+            lines.Add($"• Vysoká teplota ({info.Temperature} °C): dlhodobé teplo skracuje " +
+                      "životnosť disku. Riešenie: zlepšiť chladenie, skriňu alebo umiestnenie.");
+
+        if (info.PowerOnHours >= 15_000)
+            lines.Add($"• Vek disku ({info.PowerOnHours:N0} h / {info.PowerOnDays:N0} dní): " +
+                      "dlhodobá prevádzka zvyšuje riziko poruchy. Riešenie: zálohovať dáta " +
+                      "a zvážiť výmenu.");
+
+        if (info.Wear >= 60)
+            lines.Add($"• Opotrebenie SSD ({info.Wear} %): zostáva približne " +
+                      $"{Math.Max(0, 100 - info.Wear)} % životnosti. Riešenie: zálohovať a pri " +
+                      "vysokom opotrebení naplánovať výmenu.");
+
+        if (info.AvailableSpare >= 0 && info.SpareThreshold > 0 &&
+            info.AvailableSpare < info.SpareThreshold)
+            lines.Add($"• Náhradné bloky pod prahom ({info.AvailableSpare} % < " +
+                      $"{info.SpareThreshold} %): disku dochádzajú náhradné bloky. " +
+                      "Riešenie: zálohovať a pripraviť výmenu.");
+
+        if (info.ReadErrorsUncorrected > 0 || info.WriteErrorsUncorrected > 0)
+            lines.Add($"• Neopravené chyby čítania/zápisu " +
+                      $"({info.ReadErrorsUncorrected:N0} / {info.WriteErrorsUncorrected:N0}): " +
+                      "dáta sa nepodarilo prečítať alebo zapísať. Riziko straty dát. " +
+                      "Riešenie: zálohovať a disk vymeniť.");
+
+        if (info.CriticalWarning != 0)
+            lines.Add($"• NVMe varovanie 0x{info.CriticalWarning:X2}: disku sa minuli " +
+                      "náhradné bloky alebo hlási zníženú spoľahlivosť. Riešenie: zálohovať " +
+                      "a pripraviť výmenu.");
+
+        if (info.ReadTestRating == QuickReadRating.Bad)
+            lines.Add($"• Rýchly test čítania ({info.ReadTestMbPerSecond:0.0} MB/s): čítanie je " +
+                      "podozrivo pomalé. Riziko: zlý stav povrchu alebo mostíka. Riešenie: " +
+                      "spustiť plnú kontrolu povrchu.");
+        else if (info.ReadTestRating == QuickReadRating.Caution)
+            lines.Add($"• Rýchly test čítania ({info.ReadTestMbPerSecond:0.0} MB/s): čítanie je " +
+                      "pomalšie. Riešenie: spustiť kontrolu povrchu a sledovať, či sa rýchlosť zhoršuje.");
+
+        return lines;
     }
 
     private static void ComputeHealth(SmartInfo info)
@@ -533,6 +612,11 @@ foreach ($a in $attrs) {
         }
         else if (info.Temperature > 60) score -= 5;
 
+        ApplyRating(info, score);
+    }
+
+    private static void ApplyRating(SmartInfo info, int score)
+    {
         info.HealthScore = Math.Clamp(score, 0, 100);
         info.Rating = info.HealthScore switch
         {

@@ -1,5 +1,23 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.25] - 2026-11-21
+
+- **Každý SMART problém je teraz vysvetlený vľavo v Sprievodcovi** — čo znamená,
+  aké sú riziká a čo robiť:
+  - CRC chyby prenosu (kábel/port/mostík)
+  - presunuté, nestabilné a neopraviteľné sektory
+  - chyby média, neopravené chyby čítania/zápisu
+  - vysoká teplota, vek disku, opotrebenie SSD, náhradné bloky
+  - pomalý rýchly test čítania
+- **CRC chyby sa už nezamlčia**: pribudnú do upozornenia a karty
+  („chyby CRC: 1 – skontrolujte kábel/port“).
+- Pri nezávažných nálezoch je lišta **žltá (UPOZORNENIE)**, nie červená;
+  zdravie sa zníži maximálne na **94 % (Dobrý)**, aby nesvietilo „Výborný“.
+- Overené na WDC WD5000AAKX v doku: 94 %, Dobrý, CRC 1 s vysvetlením
+  a odporúčaním skontrolovať kábel/port.
+- Dlhší popis sa zalomí podľa šírky okna; hlavička skráti dlhý model „…“,
+  takže sa nerozšíri mimo okna.
+
 ## [2.24] - 2026-11-21
 
 - **S.M.A.R.T. a sériové čísla pre dvojdiskový USB dok AXAGON ADSA-DC**:

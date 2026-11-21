@@ -328,11 +328,13 @@ public sealed class MainForm : Form
         headerButtons.Controls.Add(_btnOpenImage);
         controls.Controls.Add(headerButtons, 2, 0);
 
-        _volumeInfo.AutoSize = true;
-        _volumeInfo.MaximumSize = new Size(650, 0);
+        _volumeInfo.AutoSize = false;
+        _volumeInfo.Dock = DockStyle.Fill;
+        _volumeInfo.AutoEllipsis = true;
+        _volumeInfo.TextAlign = ContentAlignment.MiddleLeft;
         _volumeInfo.ForeColor = Color.FromArgb(220, 238, 248);
         _volumeInfo.BackColor = Color.Transparent;
-        _volumeInfo.Margin = new Padding(0, 9, 0, 0);
+        _volumeInfo.Margin = new Padding(0, 4, 0, 0);
         controls.Controls.Add(_volumeInfo, 0, 1);
         controls.SetColumnSpan(_volumeInfo, 2);
 

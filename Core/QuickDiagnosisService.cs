@@ -133,6 +133,13 @@ public static class QuickDiagnosisService
             }
         }
 
+        if (report.Smart is { } smartInfo)
+        {
+            var advice = SmartInfoService.BuildAdvice(smartInfo);
+            if (advice.Count > 0)
+                report.Details += "\n\n" + string.Join("\n", advice);
+        }
+
         if (report.ReadTest is { Ran: true } read &&
             read.Rating is QuickReadRating.Bad or QuickReadRating.Caution)
         {
@@ -405,8 +412,9 @@ public static class QuickDiagnosisService
                 ? "Disk je len na čítanie"
                 : "Disk je prázdny alebo bez partície";
 
-        var details = "Na disku sa nenašla použiteľná partícia, preto tu nie je čo kopírovať ani opravovať.\n\n" +
-                      "Môžete spustiť kontrolu povrchu, vytvoriť novú partíciu alebo skúsiť hĺbkovú záchranu súborov.";
+        var details = "Na disku sa nenašla použiteľná partícia, preto tu nie je čo kopírovať " +
+                      "ani opravovať. Môžete spustiť kontrolu povrchu, vytvoriť novú partíciu " +
+                      "alebo skúsiť záchranu súborov.";
         if (offline)
             details += "\n\nDisk je offline — najprv ho pripojte v Správe diskov.";
         else if (readOnly)
