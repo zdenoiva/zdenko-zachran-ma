@@ -156,6 +156,12 @@ public sealed class WizardPanel : UserControl
 
     public void SetReport(QuickDiagnosisReport report)
     {
+        if (InvokeRequired)
+        {
+            try { BeginInvoke(new Action<QuickDiagnosisReport>(SetReport), report); } catch { }
+            return;
+        }
+
         _lblPartition.Text = report.Partition.Display + "  ·  " + report.Partition.Model;
         _lblTitle.Text = report.Title;
         _lblDetails.Text = report.Details;

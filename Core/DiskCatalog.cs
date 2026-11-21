@@ -43,6 +43,33 @@ public static class DiskCatalog
                 Ps.Str(d, "BusType"));
         }
 
+        // USB-SATA mostíky často hlásia rovnaký model/sériové číslo pre oba disky.
+        // Skutočné hodnoty vieme z ATA IDENTIFY DEVICE.
+        var usbCandidates = disks
+            .Where(kv => (kv.Value.BusType.Contains("USB", StringComparison.OrdinalIgnoreCase) ||
+                          string.IsNullOrWhiteSpace(kv.Value.Model)) && kv.Value.Size > 0)
+            .ToList();
+        if (usbCandidates.Count > 0)
+        {
+            var identifyTasks = usbCandidates
+                .Select(kv => Task.Run(() => (Number: kv.Key, Identify: AtaSmart.ReadIdentify(kv.Key))))
+                .ToArray();
+            await Task.WhenAny(Task.WhenAll(identifyTasks), Task.Delay(3500)).ConfigureAwait(false);
+
+            foreach (var task in identifyTasks)
+            {
+                if (!task.IsCompletedSuccessfully) continue;
+                var (number, identify) = task.Result;
+                if (identify is not { } id) continue;
+                var disk = disks[number];
+                var model = string.IsNullOrWhiteSpace(id.Model) ? disk.Model : id.Model;
+                var serial = string.IsNullOrWhiteSpace(id.Serial) ? disk.Serial : id.Serial;
+                disks[number] = (model, serial, disk.Size, disk.Sector, disk.Style,
+                    disk.Guid, disk.Signature, disk.IsBoot, disk.IsSystem,
+                    disk.IsOffline, disk.IsReadOnly, disk.BusType);
+            }
+        }
+
         var byDisk = new Dictionary<int, List<DiskPartition>>();
         foreach (var p in Ps.Objects(partDoc))
         {

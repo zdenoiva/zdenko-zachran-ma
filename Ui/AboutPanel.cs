@@ -55,7 +55,8 @@ public sealed class AboutPanel : UserControl
             "o zápis/opravu vadných sektorov.\n" +
             "12. Sprievodca zobrazí grafickú kartu stavu disku: zdravie v %, teplotu, " +
             "životnosť SSD, sektory, krátky test čítania a pri NVMe aj zápis/čítanie z NVMe SMART logu. " +
-            "S.M.A.R.T. čítá aj priamo cez ATA pre USB-SATA mostíky a doku.\n" +
+            "S.M.A.R.T. čítá aj priamo cez ATA pre USB-SATA mostíky a doku; " +
+            "skutočný model a sériové číslo zistí cez ATA IDENTIFY DEVICE.\n" +
             "13. Aktualizácie: program skontroluje novú verziu, stiahne inštalátor alebo " +
             "prenosnú verziu a po zavretí programu sa sám aktualizuje.\n" +
             "14. Pri pomalom čítaní alebo vysokom počte hodín program zníži zdravie disku, " +

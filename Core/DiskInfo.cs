@@ -89,6 +89,24 @@ public static class DiskInfoCatalog
         }
 
         list.Sort((a, b) => a.Number.CompareTo(b.Number));
+
+        var identifyTasks = list
+            .Where(d => d.BusType.Contains("USB", StringComparison.OrdinalIgnoreCase))
+            .Select(d => Task.Run(() => (Disk: d, Identify: AtaSmart.ReadIdentify(d.Number))))
+            .ToArray();
+        if (identifyTasks.Length > 0)
+        {
+            await Task.WhenAny(Task.WhenAll(identifyTasks), Task.Delay(3500)).ConfigureAwait(false);
+            foreach (var task in identifyTasks)
+            {
+                if (!task.IsCompletedSuccessfully) continue;
+                var (disk, identify) = task.Result;
+                if (identify is not { } id) continue;
+                if (!string.IsNullOrWhiteSpace(id.Model)) disk.Model = id.Model;
+                if (!string.IsNullOrWhiteSpace(id.Serial)) disk.Serial = id.Serial;
+            }
+        }
+
         return list;
     }
 }

@@ -1,5 +1,22 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.24] - 2026-11-21
+
+- **S.M.A.R.T. a sériové čísla pre dvojdiskový USB dok AXAGON ADSA-DC**:
+  - dok vracia SCSI stav „CHECK CONDITION“ s fixed-format sense `70 00 01`
+    (RECOVERED ERROR) — ten sa teraz správne vyhodnotí ako úspech
+  - ATA príkaz sa adresuje na správny LUN (`PathId/TargetId/Lun`), takže
+    druhý disk v doku sa už nečíta ako prvý
+  - skutočný **model a sériové číslo** sa čítajú cez **ATA IDENTIFY DEVICE**
+    (Windows pri doku hlásil pre oba disky „Generic Physical Disk“ a rovnaké SN)
+  - identifikácia USB diskov prebieha paralelne s limitom, aby sa štart nezdržal
+  - ATA čítanie má časový limit, takže zaspávajúci disk nezablokuje diagnostiku
+- Overené na AXAGON ADSA-DC s dvoma diskami:
+  - **TOSHIBA DT01ACA100**, S/N `27LDW30NS`, 17 SMART atribútov, 100 %, 33 °C, 7 039 h
+  - **WDC WD5000AAKX-00ERMA0**, S/N `WD-WCC2EMS28839`, 17 SMART atribútov, 97 %, 34 °C, 2 056 h
+- Sprievodca bezpečne aktualizuje kartu aj vtedy, keď sa výsledok vráti z iného
+  vlákna (žiadne zaseknutie na „Zisťujem stav disku…“).
+
 ## [2.23] - 2026-11-15
 
 - **S.M.A.R.T. v dvojdiskových USB doku/klonovacom systéme**:

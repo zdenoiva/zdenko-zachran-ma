@@ -14,6 +14,16 @@ internal static class Program
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
+        try
+        {
+            Directory.CreateDirectory(AppPaths.Logs);
+            Log.FilePath = Path.Combine(AppPaths.Logs,
+                $"session-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+            Log.Write($"{AppInfo.Name} start, verzia {AppInfo.VersionDisplay} " +
+                      $"({string.Join(" ", args)})");
+        }
+        catch { }
+
         if (args.Any(a => a.Equals("--selftest", StringComparison.OrdinalIgnoreCase)))
         {
             return SelfTest.Run();
@@ -27,7 +37,7 @@ internal static class Program
                 var lines = parts.Select(p =>
                     $"{p.Display} | disk={p.DiskNumber} part={p.PartitionNumber} " +
                     $"offset={p.Offset} length={p.Length} letter={p.DriveLetter} " +
-                    $"type={p.PartitionType} system={p.IsSystem} model={p.Model}");
+                    $"type={p.PartitionType} system={p.IsSystem} model={p.Model} serial={p.Serial}");
                 var path = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-catalog.log");
                 File.WriteAllLines(path, lines);
                 return 0;
@@ -248,6 +258,9 @@ internal static class Program
                     $"actions={string.Join(",", report.Actions)} " +
                     $"disabled={string.Join(",", report.DisabledActions)}\n" +
                     $"smartAvailable={report.SmartAvailable} smartText={report.SmartText}\n" +
+                    $"smartAttrs={report.Smart?.Attributes.Count} score={report.Smart?.HealthScore} " +
+                    $"rating={report.Smart?.Rating} hours={report.Smart?.PowerOnHours} " +
+                    $"temp={report.Smart?.Temperature} life={report.Smart?.RemainingLife}\n" +
                     $"readRan={report.ReadTest?.Ran} readRating={report.ReadTest?.Rating}");
                 return 0;
             }
@@ -333,6 +346,8 @@ internal static class Program
         if (args.Any(a => a.Equals("--uishot", StringComparison.OrdinalIgnoreCase)))
         {
             ApplicationConfiguration.Initialize();
+            SynchronizationContext.SetSynchronizationContext(
+                new WindowsFormsSynchronizationContext());
             var path = args.SkipWhile(a => !a.Equals("--uishot", StringComparison.OrdinalIgnoreCase))
                 .Skip(1).FirstOrDefault();
             if (string.IsNullOrWhiteSpace(path))
@@ -805,7 +820,6 @@ internal static class Program
         }
 
         Directory.CreateDirectory(AppPaths.Logs);
-        Log.FilePath = Path.Combine(AppPaths.Logs, $"session-{DateTime.Now:yyyyMMdd-HHmmss}.log");
         Log.Write($"{AppInfo.Name} start, verzia {typeof(Program).Assembly.GetName().Version}");
 
         if (!IsAdministrator())

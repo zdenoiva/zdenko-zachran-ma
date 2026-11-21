@@ -220,7 +220,19 @@ foreach ($a in $attrs) {
             // USB-SATA mostíky často neposkytnú SMART cez WMI. Skúsime priamo ATA.
             if (!info.Nvme)
             {
-                var page = AtaSmart.ReadPage(diskNumber);
+                var ataTask = Task.Run(() => AtaSmart.ReadPage(diskNumber));
+                byte[]? page = null;
+                try
+                {
+                    var finished = await Task.WhenAny(ataTask, Task.Delay(5000, ct))
+                        .ConfigureAwait(false);
+                    if (finished == ataTask && ataTask.IsCompletedSuccessfully)
+                        page = ataTask.Result;
+                    else
+                        Log.Warn($"S.M.A.R.T. disk {diskNumber}: ATA čítanie trvá pridlho, preskakujem.");
+                }
+                catch (OperationCanceledException) { }
+
                 if (page is null)
                 {
                     Log.Warn($"S.M.A.R.T. disk {diskNumber}: ATA čítanie zlyhalo " +

@@ -110,6 +110,21 @@ public static class AtaSmart
         out int bytesReturned, IntPtr overlapped);
 
     private static byte[]? ReadPageScsi(int diskNumber)
+        => ReadAtaScsi(diskNumber, 0xB0, 0xD0, 0x01, 0x01, 0x4F, 0xC2, requireSmart: true);
+
+    /// <summary>Prečíta ATA IDENTIFY DEVICE (skutočný model a sériové číslo).</summary>
+    public static (string Serial, string Model)? ReadIdentify(int diskNumber)
+    {
+        var page = ReadAtaScsi(diskNumber, 0xEC, 0x00, 0x01, 0x00, 0x00, 0x00,
+            requireSmart: false);
+        if (page is null) return null;
+        var (serial, model) = ParseIdentify(page);
+        if (serial.Length == 0 && model.Length == 0) return null;
+        return (serial, model);
+    }
+
+    private static byte[]? ReadAtaScsi(int diskNumber, byte command, byte features,
+        byte count, byte lbaLow, byte lbaMid, byte lbaHigh, bool requireSmart)
     {
         SafeFileHandle? handle = null;
         IntPtr buffer = IntPtr.Zero;
@@ -160,26 +175,26 @@ public static class AtaSmart
                 cdb16[0] = 0x85;
                 cdb16[1] = 0x08;
                 cdb16[2] = direction;
-                cdb16[4] = 0xD0;
-                cdb16[6] = 0x01;
-                cdb16[8] = 0x01;
-                cdb16[10] = 0x4F;
-                cdb16[12] = 0xC2;
+                cdb16[4] = features;
+                cdb16[6] = count;
+                cdb16[8] = lbaLow;
+                cdb16[10] = lbaMid;
+                cdb16[12] = lbaHigh;
                 cdb16[13] = 0xA0;
-                cdb16[14] = 0xB0;
+                cdb16[14] = command;
                 variants.Add((cdb16, 16));
 
                 var cdb12 = new byte[16];
                 cdb12[0] = 0xA1;
                 cdb12[1] = 0x08;
                 cdb12[2] = direction;
-                cdb12[3] = 0xD0;
-                cdb12[4] = 0x01;
-                cdb12[5] = 0x01;
-                cdb12[6] = 0x4F;
-                cdb12[7] = 0xC2;
+                cdb12[3] = features;
+                cdb12[4] = count;
+                cdb12[5] = lbaLow;
+                cdb12[6] = lbaMid;
+                cdb12[7] = lbaHigh;
                 cdb12[8] = 0xA0;
-                cdb12[9] = 0xB0;
+                cdb12[9] = command;
                 variants.Add((cdb12, 12));
             }
 
@@ -195,7 +210,7 @@ public static class AtaSmart
                     SenseInfoLength = (byte)senseSize,
                     DataIn = 1,
                     DataTransferLength = PageSize,
-                    TimeOutValue = 10,
+                    TimeOutValue = 5,
                     DataBuffer = data,
                     SenseInfoOffset = (uint)structSize,
                     Cdb = variant.Cdb
@@ -225,12 +240,24 @@ public static class AtaSmart
 
                 var page = new byte[PageSize];
                 Marshal.Copy(data, page, 0, PageSize);
-                var attributes = ParseAttributes(page);
-                if (attributes.Count >= 3 &&
-                    attributes.Any(a => a.Id is 5 or 9 or 194 or 197 or 198))
-                    return page;
-                errors.Add($"empty {variant.Cdb[0]:X2}/{variant.Cdb[2]:X2} " +
-                           $"status={back.ScsiStatus} attrs={attributes.Count}");
+
+                if (requireSmart)
+                {
+                    var attributes = ParseAttributes(page);
+                    if (attributes.Count >= 3 &&
+                        attributes.Any(a => a.Id is 5 or 9 or 194 or 197 or 198))
+                        return page;
+                    errors.Add($"empty {variant.Cdb[0]:X2}/{variant.Cdb[2]:X2} " +
+                               $"status={back.ScsiStatus} attrs={attributes.Count}");
+                }
+                else
+                {
+                    var (serial, model) = ParseIdentify(page);
+                    if (serial.Length > 0 || model.Length > 0)
+                        return page;
+                    errors.Add($"empty-identify {variant.Cdb[0]:X2}/{variant.Cdb[2]:X2} " +
+                               $"status={back.ScsiStatus}");
+                }
             }
 
             LastError = string.Join("; ", errors);
@@ -251,7 +278,13 @@ public static class AtaSmart
 
     private static bool AtaRecoveredOk(byte[] sense)
     {
-        if (sense.Length < 8 || sense[0] != 0x72) return false;
+        if (sense.Length < 8) return false;
+
+        // Fixed format: 70 00 01 ... (sense key = RECOVERED ERROR, ASC/ASCQ 00/1D).
+        if (sense[0] == 0x70)
+            return (sense[2] & 0x0F) == 0x01;
+
+        if (sense[0] != 0x72) return false;
         if ((sense[1] & 0x0F) != 0x01) return false; // RECOVERED ERROR
 
         int length = sense[7];
@@ -272,9 +305,28 @@ public static class AtaSmart
         return false;
     }
 
-    public static List<SmartAttribute> ParseAttributes(byte[] page)
+    private static (string Serial, string Model) ParseIdentify(byte[] page)
     {
-        var attributes = new List<SmartAttribute>();
+        if (page.Length < 94) return ("", "");
+        return (AtaString(page, 20, 10), AtaString(page, 54, 20));
+    }
+
+    private static string AtaString(byte[] page, int offset, int words)
+    {
+        var chars = new char[words * 2];
+        for (int i = 0; i < words; i++)
+        {
+            chars[i * 2] = (char)page[offset + i * 2 + 1];
+            chars[i * 2 + 1] = (char)page[offset + i * 2];
+        }
+        var text = new string(chars)
+            .Where(c => c is >= (char)0x20 and < (char)0x7F)
+            .ToArray();
+        return new string(text).Trim();
+    }
+
+    public static List<SmartAttribute> ParseAttributes(byte[] page)
+    {        var attributes = new List<SmartAttribute>();
         if (page.Length < 362) return attributes;
 
         for (int i = 0; i < 30; i++)

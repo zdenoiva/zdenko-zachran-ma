@@ -1162,7 +1162,11 @@ public sealed class MainForm : Form
         try
         {
             _wizard.SetBusy(true, partition.IsWholeDisk ? "Zisťujem stav disku..." : "Zisťujem stav partície...");
+            var diagnosisWatch = System.Diagnostics.Stopwatch.StartNew();
+            Log.Info($"Diagnostika UI: štart {partition.Display}, verzia {version}");
             var report = await QuickDiagnosisService.RunAsync(partition, CancellationToken.None);
+            Log.Info($"Diagnostika UI: hotovo {partition.Display}, " +
+                     $"{diagnosisWatch.ElapsedMilliseconds} ms, verzia {version}, aktuálna {_selectionVersion}");
             if (version != _selectionVersion) return;
             _wizard.SetReport(report);
             _wizard.SetBusy(_busy);
