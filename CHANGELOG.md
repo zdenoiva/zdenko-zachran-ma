@@ -1,5 +1,22 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.27] - 2026-11-22
+
+- **Ďalšie USB mostíky pre SMART a identitu**:
+  - Cypress (vendor CDB `24 24 00 BE …`)
+  - Prolific (vendor CDB `D8 15 …`)
+  - doplnené k ASM1352R, JMicron, Sunplus a štandardnému SAT
+  - pridaný fallback cez klasické `SCSI_PASS_THROUGH` (nie direct), ktoré
+    niektoré USB ovládače vyžadujú
+- **Diagnostika USB/SMART priamo v programe**:
+  - **O programe → Uložiť USB/SMART diagnostiku…**
+  - report obsahuje Windows PnP, USB VID/PID, SCSI adresu, INQUIRY, ATA IDENTIFY,
+    použitý protokol, SMART atribúty a presnú SCSI chybu
+  - rovnaký report sa dá vytvoriť cez `ZachranaDisku.exe --usbdiag`
+    (súbor `%TEMP%\ZdenkoZachranMa-usbdiag.txt`)
+- Zámok disku z 2.26 zostáva: kontrola povrchu, oprava povrchu a vymazanie
+  sú chránené proti druhej inštancii programu.
+
 ## [2.26] - 2026-11-22
 
 - **Univerzálnejšie S.M.A.R.T. a identifikácia pre USB doku/klonovací box**:

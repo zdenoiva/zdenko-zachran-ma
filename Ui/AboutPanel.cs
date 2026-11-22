@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using NtfsRescue.Core;
 using NtfsRescue.Util;
 
@@ -64,12 +65,11 @@ public sealed class AboutPanel : UserControl
             "15. Každý nález v S.M.A.R.T. (CRC, sektory, teplota, vek, opotrebenie, " +
             "náhradné bloky) je vľavo vysvetlený vrátane rizika a odporúčaného riešenia.\n" +
             "16. USB-SATA mostíky: SMART a identita sa čítajú cez štandardné SAT, " +
-            "ASM1352R, JMicron a Sunplus; identita aj cez SCSI INQUIRY.\n" +
+            "ASM1352R, JMicron, Sunplus, Cypress a Prolific; identita aj cez SCSI INQUIRY.\n" +
             "17. Kontrola povrchu, oprava povrchu a vymazanie disku sú zamknuté proti " +
             "druhej inštancii programu.\n" +
             "18. Sprievodca zobrazí aj disky bez partície (nový, prázdny, RAW, offline). " +
-            "Pre prázdny disk ponúkne kontrolu povrchu, vytvorenie partície a záchranu " +
-            "súborov; nepoužiteľné kroky sú šedé."));
+            "V O programe sa dá uložiť USB/SMART diagnostika s VID/PID a presnou chybou."));
 
         layout.Controls.Add(Section("Použité nástroje a licencie",
             "• Windows chkdsk — oprava NTFS/FAT32 (Microsoft)\n" +
@@ -142,6 +142,11 @@ public sealed class AboutPanel : UserControl
         updateButton.Click += async (_, _) => await CheckUpdatesAsync();
         content.Controls.Add(updateButton);
 
+        var diagButton = Theme.SecondaryButton("Uložiť USB/SMART diagnostiku…");
+        diagButton.Margin = new Padding(0, 8, 0, 0);
+        diagButton.Click += async (_, _) => await SaveUsbDiagnosticsAsync();
+        content.Controls.Add(diagButton);
+
         panel.Controls.Add(content);
 
         panel.Paint += (_, e) =>
@@ -152,8 +157,31 @@ public sealed class AboutPanel : UserControl
         return panel;
     }
 
-    private async Task CheckUpdatesAsync()
+    private async Task SaveUsbDiagnosticsAsync()
     {
+        using var dialog = new SaveFileDialog
+        {
+            Filter = "Textový report|*.txt|Všetky súbory|*.*",
+            FileName = $"usb-smart-diagnostika-{DateTime.Now:yyyyMMdd-HHmm}.txt",
+            Title = "Uložiť USB/SMART diagnostiku"
+        };
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
+
+        try
+        {
+            var text = await UsbDiagnostics.BuildAsync(CancellationToken.None);
+            File.WriteAllText(dialog.FileName, text, new UTF8Encoding(false));
+            MessageBox.Show("Diagnostika bola uložená:\n" + dialog.FileName,
+                AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Diagnostiku sa nepodarilo uložiť:\n" + ex.Message,
+                AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private async Task CheckUpdatesAsync()    {
         try
         {
             var info = await UpdateService.CheckAsync();

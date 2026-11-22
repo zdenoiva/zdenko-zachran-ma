@@ -184,6 +184,23 @@ internal static class Program
             }
         }
 
+        if (args.Any(a => a.Equals("--usbdiag", StringComparison.OrdinalIgnoreCase)))
+        {
+            var path = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-usbdiag.txt");
+            try
+            {
+                var text = UsbDiagnostics.BuildAsync(CancellationToken.None)
+                    .GetAwaiter().GetResult();
+                File.WriteAllText(path, text, new UTF8Encoding(false));
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(path, "USBDIAG FAIL: " + ex);
+                return 1;
+            }
+        }
+
         if (args.Any(a => a.Equals("--locktest", StringComparison.OrdinalIgnoreCase)))
         {
             var logPath = Path.Combine(Path.GetTempPath(),

@@ -1,6 +1,6 @@
 # Zdenko, zachráň ma!
 
-**Verzia 2.26** · © 2026 **Zdenko Ivančík**
+**Verzia 2.27** · © 2026 **Zdenko Ivančík**
 
 Nekomerčné použitie je povolené. **Komerčné použitie je možné len s výslovným
 súhlasom autora.**
@@ -12,7 +12,7 @@ potvrdenia.
 - GitHub: <https://github.com/zdenoiva/zdenko-zachran-ma>
 - Releases: <https://github.com/zdenoiva/zdenko-zachran-ma/releases>
 - Stránka na stiahnutie: <https://zdenoiva.github.io/zdenko-zachran-ma/>
-- Aktuálna verzia: **2.26**
+- Aktuálna verzia: **2.27**
 
 ## Inštalácia alebo prenosné spustenie
 
@@ -20,7 +20,7 @@ potvrdenia.
   - **jeden súbor**, self-contained, nepotrebuje .NET ani inštaláciu
   - skopírujte ho na iný počítač a spustite
   - všetky potrebné natívne knižnice sa rozbalia dočasne automaticky
-- **Inštalátor:** `dist\ZachranaDisku-Setup-2.26.exe`
+- **Inštalátor:** `dist\ZachranaDisku-Setup-2.27.exe`
   - po spustení ponúkne dve možnosti:
     - **Nainštalovať do počítača** (Program Files, Štart, odinštalovanie cez
       Nastavenia → Aplikácie)
@@ -84,8 +84,10 @@ potvrdenia.
   funguje aj tam, kde Windows SMART neposkytne — rovnaké atribúty ako v HD Tune;
   pre každý disk v doku sa použije jeho skutočná SCSI adresa (PathId/TargetId/Lun)
   a skutočný model/sériové číslo sa zistí cez ATA IDENTIFY DEVICE
-- podporované sú aj špecifické protokoly ASM1352R, JMicron a Sunplus;
-  identita sa skúša aj cez SCSI INQUIRY
+- podporované sú aj špecifické protokoly ASM1352R, JMicron, Sunplus,
+  Cypress a Prolific; identita sa skúša aj cez SCSI INQUIRY
+- **USB/SMART diagnostika**: O programe → Uložiť USB/SMART diagnostiku…
+  (obsahuje VID/PID mostíka, SCSI adresu, protokol a presnú chybu)
 - **kontrola povrchu, oprava povrchu a vymazanie disku sú zamknuté** proti
   druhej inštancii programu (zámok `locks\disk-N.lock`)
 - ďalšie kroky sa zobrazia podľa výsledku:
@@ -250,7 +252,7 @@ winget install JRSoftware.InnoSetup
 .\make-installer.ps1
 ```
 
-Výsledok: `dist\ZachranaDisku-Setup-2.26.exe`.
+Výsledok: `dist\ZachranaDisku-Setup-2.27.exe`.
 
 ## Vydanie novej verzie
 
@@ -273,7 +275,7 @@ Potom commitnite a pushnite `latest.json` a `CHANGELOG.md`:
 
 ```powershell
 git add latest.json CHANGELOG.md
-git commit -m "Release v2.26"
+git commit -m "Release v2.27"
 git push
 ```
 
@@ -317,6 +319,7 @@ Licenčné texty tretích strán: `THIRD_PARTY_NOTICES.md`.
 Program pracuje s diskovými zariadeniami a pri oprave zapisuje do metadát.
 Používate ho na vlastné riziko. Pred opravou si vždy skopírujte dôležité dáta.
 Záchrana má zmysel len dovtedy, kým sa prepísané dáta neprepíšu inými.
+
 
 
 

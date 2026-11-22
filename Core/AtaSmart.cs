@@ -20,6 +20,7 @@ public static class AtaSmart
     private const uint OpenExisting = 3;
     private const uint SmartRcvDriveData = 0x0007C088;
     private const uint IoctlScsiPassThroughDirect = 0x0004D014;
+    private const uint IoctlScsiPassThrough = 0x0004D004;
     private const uint IoctlScsiGetAddress = 0x00041018;
     private const int PageSize = 512;
 
@@ -84,6 +85,25 @@ public static class AtaSmart
         {
             try { handle?.Dispose(); } catch { }
         }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ScsiPassThrough
+    {
+        public ushort Length;
+        public byte ScsiStatus;
+        public byte PathId;
+        public byte TargetId;
+        public byte Lun;
+        public byte CdbLength;
+        public byte SenseInfoLength;
+        public byte DataIn;
+        public uint DataTransferLength;
+        public uint TimeOutValue;
+        public uint DataBufferOffset;
+        public uint SenseInfoOffset;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+        public byte[] Cdb;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -224,6 +244,41 @@ public static class AtaSmart
             sunplus[11] = command;
             variants.Add((sunplus, 12));
 
+            // Cypress USB mostíky.
+            var cypress = new byte[16];
+            cypress[0] = 0x24;
+            cypress[1] = 0x24;
+            cypress[2] = 0x00;
+            cypress[3] = 0xBE;
+            cypress[4] = 0x01;
+            cypress[5] = 0x00;
+            cypress[6] = command == 0xB0 ? (byte)0xD0 : (byte)0x00;
+            cypress[9] = command == 0xB0 ? (byte)0x4F : (byte)0x00;
+            cypress[10] = command == 0xB0 ? (byte)0xC2 : (byte)0x00;
+            cypress[11] = 0xA0;
+            cypress[12] = command;
+            variants.Add((cypress, 16));
+
+            // Prolific USB mostíky.
+            var prolific = new byte[16];
+            prolific[0] = 0xD8;
+            prolific[1] = 0x15;
+            prolific[2] = 0x00;
+            prolific[3] = command == 0xB0 ? (byte)0xD0 : (byte)0x00;
+            prolific[4] = 0x06;
+            prolific[5] = 0x7B;
+            prolific[6] = 0x00;
+            prolific[7] = 0x00;
+            prolific[8] = 0x02;
+            prolific[9] = 0x00;
+            prolific[10] = 0x01;
+            prolific[11] = 0x00;
+            prolific[12] = command == 0xB0 ? (byte)0x4F : (byte)0x00;
+            prolific[13] = command == 0xB0 ? (byte)0xC2 : (byte)0x00;
+            prolific[14] = 0xA0;
+            prolific[15] = command;
+            variants.Add((prolific, 16));
+
             // Štandardné SAT (AHCI, väčšina USB mostíkov).
             foreach (byte direction in new byte[] { 0x2E, 0x3E })
             {
@@ -320,6 +375,79 @@ public static class AtaSmart
                     errors.Add($"empty-identify {variant.Cdb[0]:X2}/{variant.Cdb[2]:X2} " +
                                $"status={back.ScsiStatus}");
                 }
+            }
+
+            // Niektoré USB mostíky podporujú len klasické SCSI_PASS_THROUGH (nie direct).
+            int ndStruct = Marshal.SizeOf<ScsiPassThrough>();
+            int ndSize = ndStruct + PageSize + senseSize;
+            IntPtr ndBuffer = Marshal.AllocHGlobal(ndSize);
+            try
+            {
+                foreach (var variant in variants)
+                {
+                    for (int i = 0; i < ndSize; i++) Marshal.WriteByte(ndBuffer, i, 0);
+                    var packet = new ScsiPassThrough
+                    {
+                        Length = (ushort)ndStruct,
+                        PathId = pathId,
+                        TargetId = targetId,
+                        Lun = lun,
+                        CdbLength = variant.CdbLength,
+                        SenseInfoLength = (byte)senseSize,
+                        DataIn = 1,
+                        DataTransferLength = PageSize,
+                        TimeOutValue = 5,
+                        DataBufferOffset = (uint)ndStruct,
+                        SenseInfoOffset = (uint)(ndStruct + PageSize),
+                        Cdb = variant.Cdb
+                    };
+                    Marshal.StructureToPtr(packet, ndBuffer, false);
+
+                    if (!DeviceIoControlPtr(handle, IoctlScsiPassThrough,
+                            ndBuffer, ndSize, ndBuffer, ndSize,
+                            out int returned, IntPtr.Zero) || returned <= 0)
+                    {
+                        errors.Add($"nd ioctl {variant.Cdb[0]:X2}/{variant.Cdb[1]:X2} " +
+                                   $"{Marshal.GetLastWin32Error()}/{returned}");
+                        continue;
+                    }
+
+                    var back = Marshal.PtrToStructure<ScsiPassThrough>(ndBuffer);
+                    var sense = new byte[senseSize];
+                    Marshal.Copy(ndBuffer + ndStruct + PageSize, sense, 0, senseSize);
+                    if (back.ScsiStatus != 0 && !AtaRecoveredOk(sense))
+                    {
+                        errors.Add($"nd scsi {variant.Cdb[0]:X2}/{variant.Cdb[1]:X2} " +
+                                   $"status={back.ScsiStatus} sense={Convert.ToHexString(sense)}");
+                        continue;
+                    }
+
+                    var page = new byte[PageSize];
+                    Marshal.Copy(ndBuffer + ndStruct, page, 0, PageSize);
+                    if (requireSmart)
+                    {
+                        var attributes = ParseAttributes(page);
+                        if (attributes.Count >= 3 &&
+                            attributes.Any(a => a.Id is 5 or 9 or 194 or 197 or 198))
+                        {
+                            LastProtocol = $"ND/{variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
+                            return page;
+                        }
+                    }
+                    else
+                    {
+                        var (serial, model) = ParseIdentify(page);
+                        if (serial.Length > 0 || model.Length > 0)
+                        {
+                            LastProtocol = $"ND/{variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
+                            return page;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ndBuffer);
             }
 
             LastError = string.Join("; ", errors);
