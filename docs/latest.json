@@ -1,21 +1,21 @@
 {
-  "version": "2.29",
-  "tag": "v2.29",
-  "publishedAt": "2026-11-22T10:34:52Z",
+  "version": "2.30",
+  "tag": "v2.30",
+  "publishedAt": "2026-11-22T10:45:05Z",
   "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
-  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.29/ZachranaDisku.exe",
-  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.29/ZachranaDisku-Setup-2.29.exe",
-  "sha256": "9cdaf009e6688542de0123a8e75f535661b0570718d69ae76530e680ce22ac33",
-  "installerSha256": "b4ebd0b7131af10508a5d179e22a7a30cab64500af377c507f66d51cf00de023",
-  "size": 52406980,
-  "installerSize": 47364506,
+  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.30/ZachranaDisku.exe",
+  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.30/ZachranaDisku-Setup-2.30.exe",
+  "sha256": "03db38e7a73b77327e8fc17e744b46fe5e6a4e9ef6290a7c18399edd51636028",
+  "installerSha256": "c273097eefdefc80964038860f89aa478c0ff651d5c5e69e617e6e85f68ce271",
+  "size": 52408553,
+  "installerSize": 47363115,
   "changelog": [
-    "**Opravené hľadanie správneho disku za USB mostíkom**:",
-    "diagnostika z 2.28 ukázala, že na adrese `0/0/0` odpovedá samotný mostík",
-    "program teraz vyskúša okolité adresy (LUN 0–3, Target 0–1, Path 0–1),",
-    "nájdená adresa sa zapamätá, takže ďalšie čítanie SMART je rýchle",
-    "pri diagnostike sa testuje len nájdená adresa, aby sa do mostíka",
-    "Diagnostika naďalej posiela len `INQUIRY`, `VPD 0x80` a `ATA PASS-THROUGH`;",
-    "Zámok SCSI, `ZDENKO_NO_SCSI=1` a zámok disku pre kontrolu/opravu/vymazanie"
+    "**ASM1352R / ASM1352-PM: ďalšie varianty ATA príkazov**",
+    "doplnené 16-bajtové ATA PASS-THROUGH s rezervovaným protokolom `0x0D`",
+    "skúšajú sa aj varianty s `CK_COND` (`0x2E`), ktoré niektoré firmvéry vyžadujú",
+    "ak mostík v `INQUIRY` hlási `ASM1352`, skúšajú sa tieto varianty prvé",
+    "**Diagnostika vypisuje Windows deskriptor disku** (`IOCTL_STORAGE_QUERY_PROPERTY`):",
+    "Diagnostika vypisuje aj `INQUIRY` produkt mostíka a všetky skúšané adresy.",
+    "Platí naďalej: len `INQUIRY`, `VPD 0x80` a `ATA PASS-THROUGH`, varovanie pred"
   ]
 }
