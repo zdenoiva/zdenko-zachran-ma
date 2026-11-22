@@ -1,5 +1,25 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.33] - 2026-11-22
+
+- **Nájdená a vyriešená príčina EVOLVEO / ASM1352-PM**:
+  - firmvér boxu po prijatí ASM vendor príkazov prepne mostík do režimu
+    `ASMT ASM1352-PM` a disk prestane hlásiť médium
+  - po nečinnosti box navyše vypne SATA port; čítanie vráti
+    `read 21` (ERROR_NOT_READY), kým sa USB zariadenie znova nenájde
+- **Bežná cesta SMART už ASM príkazy neposiela**:
+  - poradie je `SAT12`, `SAT16`, JMicron, Sunplus, Cypress, Prolific
+  - ASM1352 varianty sú len na explicitné zapnutie `ZDENKO_ASM1352=1`
+- **Automatický reset USB mostíka**:
+  - keď je čítanie sektora 0 s chybou 21, program resetuje USB zariadenie
+    (`pnputil /restart-device`) a po 5 s skúsi SMART znova
+  - počas kontroly/opravy/vymazania sa reset nespúšťa (`AppState.Busy`)
+  - dá sa vypnúť `ZDENKO_NO_USBRESET=1`
+- Overené na EVOLVEO + WD5000AAKX: 17 atribútov, 1 533 h, 41 °C, 1 CRC,
+  zdravie 94 % — SMART sa načíta aj po predošlom zaseknutí boxu.
+- Platí: `INQUIRY`, `VPD 0x80`, `ATA PASS-THROUGH`; varovanie pred diagnostikou,
+  zámok SCSI a `ZDENKO_NO_SCSI=1`.
+
 ## [2.32] - 2026-11-22
 
 - **START STOP UNIT pri „device not ready“**:

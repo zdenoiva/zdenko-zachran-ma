@@ -964,6 +964,7 @@ public sealed class SurfacePanel : UserControl
     private void SetBusy(bool busy, string? status = null)
     {
         _busy = busy;
+        AppState.Busy = busy;
         _diskCombo.Enabled = !busy;
         _startBlock.Enabled = !busy;
         _endBlock.Enabled = !busy;
@@ -1002,6 +1003,7 @@ public sealed class SurfacePanel : UserControl
         Log.Write("Povrch: " + line);
     }
 }
+
 
 
 

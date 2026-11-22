@@ -223,7 +223,7 @@ foreach ($a in $attrs) {
             byte[]? page = null;
             try
             {
-                var finished = await Task.WhenAny(ataTask, Task.Delay(9000, ct))
+                var finished = await Task.WhenAny(ataTask, Task.Delay(20000, ct))
                     .ConfigureAwait(false);
                 if (finished == ataTask && ataTask.IsCompletedSuccessfully)
                     page = ataTask.Result;
@@ -258,7 +258,7 @@ foreach ($a in $attrs) {
         }
 
         if (!info.Available && !info.Nvme)
-            return new SmartInfo { DisplayText = "S.M.A.R.T: nedostupné" };
+            return new SmartInfo { DisplayText = UnavailableText() };
 
         info.Available = true;
 
@@ -272,12 +272,20 @@ foreach ($a in $attrs) {
         if (!hasData)
         {
             info.Available = false;
-            info.DisplayText = "S.M.A.R.T: nedostupné (Windows nehlási údaje)";
+            info.DisplayText = UnavailableText(" (Windows nehlási údaje)");
             return info;
         }
 
         ComposeDisplay(info);
         return info;
+    }
+
+    private static string UnavailableText(string suffix = "")
+    {
+        if (AtaSmart.LastBridge.Contains("ASM1352", StringComparison.OrdinalIgnoreCase))
+            return "S.M.A.R.T: mostík ASM1352 nehlási médium – odpojte a znova pripojte USB box" +
+                   suffix;
+        return "S.M.A.R.T: nedostupné" + suffix;
     }
 
     private static void ApplyAttributes(SmartInfo info)

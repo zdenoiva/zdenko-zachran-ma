@@ -14,6 +14,7 @@ public static class AtaSmart
     public static string LastAddress = "";
     public static string LastProtocol = "";
     public static string LastWakeUp = "";
+    public static string LastBridge = "";
     private const uint GenericRead = 0x80000000;
     private const uint GenericWrite = 0x40000000;
     private const uint FileShareRead = 0x00000001;
@@ -140,7 +141,18 @@ public static class AtaSmart
     public static byte[]? ReadPage(int diskNumber, int budgetMs, string expectedModel = "")
     {
         if (ScsiDisabled) return null;
-        WakeUpDisk(diskNumber);
+        var wake = WakeUpDisk(diskNumber);
+        // Box po nečinnosti vypne port a čítanie vráti "device not ready" (21).
+        // Reset USB mostíka ho znovu sprístupní; počas operácie nad diskom nie.
+        if (wake.StartsWith("read 21", StringComparison.Ordinal) &&
+            UsbBridge.AutoReset && !AppState.Busy)
+        {
+            if (UsbBridge.Reset(diskNumber))
+            {
+                Thread.Sleep(5000);
+                WakeUpDisk(diskNumber);
+            }
+        }
         var page = ReadPageLegacy(diskNumber);
         if (page is not null) return page;
         return ReadAtaScsi(diskNumber, 0xB0, 0xD0, 0x01, 0x01, 0x4F, 0xC2,
@@ -264,6 +276,10 @@ public static class AtaSmart
     public static bool ScsiDisabled =>
         !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ZDENKO_NO_SCSI"));
 
+    /// <summary>ASM1352 vendor príkazy sú len na explicitné zapnutie — firmvér ich zablokuje.</summary>
+    public static bool AsmEnabled =>
+        !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ZDENKO_ASM1352"));
+
     private static bool EnterScsi(int timeoutMs = 10000)
     {
         if (ScsiDisabled) return false;
@@ -283,7 +299,8 @@ public static class AtaSmart
     /// <summary>Poradie CDB variantov pre daný disk a príkaz.</summary>
     private static List<(string Name, byte[] Cdb, byte CdbLength)> BuildVariants(
         int diskNumber, byte command, byte features, byte count,
-        byte lbaLow, byte lbaMid, byte lbaHigh, byte lun, bool preferAsm)
+        byte lbaLow, byte lbaMid, byte lbaHigh, byte lun, bool preferAsm,
+        bool includeAsm = false)
     {
         var list = new List<(string Name, byte[] Cdb, byte CdbLength)>();
 
@@ -324,10 +341,13 @@ public static class AtaSmart
             list.Add((name, cdb, 16));
         }
 
-        // Bridge hlási ASM1352: rezervované hodnoty protokolu vyberajú
-        // SATA port 0 (0x0D) alebo port 1 (0x0E). Skúšame 16-bajtový aj
-        // 12-bajtový variant; firmware sa v tom líši.
-        if (preferAsm)
+        // 1. Štandardné SAT-12 musí byť vždy prvé. Na tomto mostíku funguje,
+        //    kým ASM príkaz ho zablokuje.
+        Add12("SAT12", 0xA1, 0x08, 0x0E);
+
+        // 2. Bridge hlási ASM1352: rezervované hodnoty protokolu vyberajú
+        //    SATA port 0 (0x0D) alebo port 1 (0x0E). Až po SAT12.
+        if (includeAsm && preferAsm)
         {
             Add16("ASM16-0E-0E", 0x85, (byte)(0x0E << 1), 0x0E);
             Add16("ASM16-0D-0E", 0x85, (byte)(0x0D << 1), 0x0E);
@@ -339,14 +359,11 @@ public static class AtaSmart
             Add12("ASM12-0D-2E", 0xA1, (byte)(0x0D << 1), 0x2E);
         }
 
-        // Štandardné SAT-12 (rovnaké ako CrystalDiskInfo).
-        Add12("SAT12", 0xA1, 0x08, 0x0E);
-
-        // Štandardné SAT-16 (AXAGON a väčšina USB mostíkov).
+        // 3. Štandardné SAT-16 (AXAGON a väčšina USB mostíkov).
         Add16("SAT16-2E", 0x85, 0x08, 0x2E);
         Add16("SAT16-0E", 0x85, 0x08, 0x0E);
 
-        if (!preferAsm)
+        if (includeAsm && !preferAsm)
         {
             Add12("ASM1352R-0D", 0xA1, (byte)(0x0D << 1), 0x0E);
             Add12("ASM1352R-0E", 0xA1, (byte)(0x0E << 1), 0x0E);
@@ -463,6 +480,7 @@ public static class AtaSmart
             new byte[] { 0x12, 0, 0, 0, 96, 0 }, 6, 96, 2,
             out _, out _, out _, out _);
         bridgeProduct = InquiryProduct(inquiry);
+        LastBridge = bridgeProduct;
 
         for (byte l = 0; l < 4; l++) Add(pathId, targetId, l);
         for (byte t = 0; t < 2; t++) Add(pathId, t, 0);
@@ -570,6 +588,33 @@ public static class AtaSmart
 
             var budget = System.Diagnostics.Stopwatch.StartNew();
             const int timeoutSeconds = 2;
+
+            // Kým sa 3,5" disk roztočí, mostík chvíľu hlási "not ready".
+            // Skúsime SAT12 na hlásenej adrese niekoľkokrát s krátkou pauzou.
+            var first = addresses[0];
+            var sat12 = BuildVariants(diskNumber, command, features, count,
+                lbaLow, lbaMid, lbaHigh, first.Lun, preferAsm: false)[0];
+            for (int attempt = 0; attempt < 12 && budget.ElapsedMilliseconds < budgetMs; attempt++)
+            {
+                byte status = 0;
+                string sense = "";
+                int win32 = 0;
+                int returned = 0;
+                var page = SendDirect(handle, first.PathId, first.TargetId, first.Lun,
+                    sat12.Cdb, sat12.CdbLength, PageSize, timeoutSeconds,
+                    out status, out sense, out win32, out returned);
+                if (page is not null && IsUsable(page, requireSmart))
+                {
+                    Preferred[diskNumber] = sat12.Name;
+                    PreferredAddress[diskNumber] = first;
+                    LastAddress = $"{first.PathId}/{first.TargetId}/{first.Lun}";
+                    LastProtocol = $"{sat12.Name} {sat12.Cdb[0]:X2}/{sat12.Cdb[1]:X2}";
+                    return page;
+                }
+                if (!SenseNotReady(sense)) break;
+                if (attempt == 0) StartUnit(diskNumber);
+                Thread.Sleep(400);
+            }
 
             foreach (var address in addresses)
             {
@@ -891,7 +936,8 @@ public static class AtaSmart
                 foreach (var address in addresses)
                 {
                     var variants = BuildVariants(diskNumber, command, features, count,
-                        lbaLow, lbaMid, lbaHigh, address.Lun, preferAsm);
+                        lbaLow, lbaMid, lbaHigh, address.Lun, preferAsm,
+                        includeAsm: AsmEnabled);
                     string addressText = $"{address.PathId}/{address.TargetId}/{address.Lun}";
 
                     foreach (bool direct in new[] { true, false })
@@ -982,6 +1028,25 @@ public static class AtaSmart
         }
         var (serial, model) = ParseIdentify(page);
         return serial.Length > 0 || model.Length > 0;
+    }
+
+    private static bool SenseNotReady(string senseHex)
+    {
+        if (string.IsNullOrWhiteSpace(senseHex)) return false;
+        try
+        {
+            var bytes = Convert.FromHexString(senseHex);
+            if (bytes.Length < 14) return false;
+            int key = (bytes[0] & 0x7F) is 0x72 or 0x73
+                ? bytes[1] & 0x0F
+                : bytes[2] & 0x0F;
+            int asc = bytes[12];
+            return key == 0x02 || asc == 0x3A;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string DecodeSense(string senseHex)
