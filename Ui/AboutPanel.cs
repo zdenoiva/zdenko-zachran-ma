@@ -67,9 +67,11 @@ public sealed class AboutPanel : UserControl
             "16. USB-SATA mostíky: SMART a identita sa čítajú cez štandardné SAT, " +
             "ASM1352R, JMicron, Sunplus, Cypress a Prolific; identita aj cez SCSI INQUIRY.\n" +
             "17. Kontrola povrchu, oprava povrchu a vymazanie disku sú zamknuté proti " +
-            "druhej inštancii programu.\n" +
-            "18. Sprievodca zobrazí aj disky bez partície (nový, prázdny, RAW, offline). " +
-            "V O programe sa dá uložiť USB/SMART diagnostika s VID/PID a presnou chybou."));
+            "druhej inštancii programu; SCSI príkazy majú spoločný zámok.\n" +
+            "18. Sprievodca zobrazí aj disky bez partície (nový, prázdny, RAW, offline) " +
+            "a disky, ktoré Windows v zozname vynechá. V O programe sa dá uložiť " +
+            "USB/SMART diagnostika s VID/PID a presnou chybou; pred spustením varuje, " +
+            "že na chybnom mostíku môže systém spadnúť."));
 
         layout.Controls.Add(Section("Použité nástroje a licencie",
             "• Windows chkdsk — oprava NTFS/FAT32 (Microsoft)\n" +
@@ -159,6 +161,16 @@ public sealed class AboutPanel : UserControl
 
     private async Task SaveUsbDiagnosticsAsync()
     {
+        var confirm = MessageBox.Show(
+            "Diagnostika posiela do USB mostíka priame SCSI/ATA príkazy " +
+            "(INQUIRY a ATA PASS-THROUGH).\n\n" +
+            "Na väčšine boxov je to bezpečné, ale pri chybnom firmvéri alebo " +
+            "ovládači môže systém zamrznúť alebo spadnúť (BSOD).\n\n" +
+            "Uložte rozpracovanú prácu. Pokračovať?",
+            "USB/SMART diagnostika", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2);
+        if (confirm != DialogResult.Yes) return;
+
         using var dialog = new SaveFileDialog
         {
             Filter = "Textový report|*.txt|Všetky súbory|*.*",
@@ -169,7 +181,8 @@ public sealed class AboutPanel : UserControl
 
         try
         {
-            var text = await UsbDiagnostics.BuildAsync(CancellationToken.None);
+            // SCSI/ATA sondy bežia mimo UI vlákna, aby okno nezamrzlo.
+            var text = await Task.Run(() => UsbDiagnostics.BuildAsync(CancellationToken.None));
             File.WriteAllText(dialog.FileName, text, new UTF8Encoding(false));
             MessageBox.Show("Diagnostika bola uložená:\n" + dialog.FileName,
                 AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -181,7 +194,8 @@ public sealed class AboutPanel : UserControl
         }
     }
 
-    private async Task CheckUpdatesAsync()    {
+    private async Task CheckUpdatesAsync()
+    {
         try
         {
             var info = await UpdateService.CheckAsync();

@@ -25,7 +25,33 @@ public static class DiskCatalog
             ct, 30000).ConfigureAwait(false);
 
         if (diskDoc is null || partDoc is null)
-            return await FallbackByVolumesAsync(ct).ConfigureAwait(false);
+        {
+            var fallback = await FallbackByVolumesAsync(ct).ConfigureAwait(false);
+            var extra = await PhysicalDiskCatalog.LoadAsync(ct).ConfigureAwait(false);
+            var known = fallback.Select(p => p.DiskNumber).ToHashSet();
+            foreach (var p in extra.Values)
+            {
+                if (p.Size <= 0 || known.Contains(p.Number)) continue;
+                fallback.Add(new DiskPartition
+                {
+                    DiskNumber = p.Number,
+                    PartitionNumber = 0,
+                    Offset = 0,
+                    Length = p.Size,
+                    SectorSize = 512,
+                    DiskSize = p.Size,
+                    Model = p.Model,
+                    Serial = p.Serial,
+                    BusType = p.Bus,
+                    PartitionType = "Bez partícií",
+                    IsWholeDisk = true
+                });
+            }
+            fallback.Sort((a, b) => a.DiskNumber != b.DiskNumber
+                ? a.DiskNumber.CompareTo(b.DiskNumber)
+                : a.Offset.CompareTo(b.Offset));
+            return fallback;
+        }
 
         var disks = new Dictionary<int, (string Model, string Serial, long Size, int Sector,
             string Style, string Guid, string Signature, bool IsBoot, bool IsSystem,
@@ -43,6 +69,15 @@ public static class DiskCatalog
                 Ps.Str(d, "BusType"));
         }
 
+        // Get-Disk niekedy disk vynechá; doplníme ho z Win32_DiskDrive.
+        var physical = await PhysicalDiskCatalog.LoadAsync(ct).ConfigureAwait(false);
+        foreach (var p in physical.Values)
+        {
+            if (p.Size <= 0 || disks.ContainsKey(p.Number)) continue;
+            disks[p.Number] = (p.Model, p.Serial, p.Size, 512, "", "", "", false,
+                false, false, false, p.Bus);
+        }
+
         // USB-SATA mostíky často hlásia rovnaký model/sériové číslo pre oba disky.
         // Skutočné hodnoty vieme z ATA IDENTIFY DEVICE.
         var usbCandidates = disks
@@ -53,7 +88,7 @@ public static class DiskCatalog
         {
             var identifyTasks = usbCandidates
                 .Select(kv => Task.Run(() => (Number: kv.Key,
-                    Identify: AtaSmart.ReadIdentify(kv.Key) ?? AtaSmart.ReadInquiry(kv.Key))))
+                    Identify: AtaSmart.ReadIdentify(kv.Key, 3000) ?? AtaSmart.ReadInquiry(kv.Key))))
                 .ToArray();
             await Task.WhenAny(Task.WhenAll(identifyTasks), Task.Delay(3500)).ConfigureAwait(false);
 

@@ -13,15 +13,59 @@ public static class UsbDiagnostics
         text.AppendLine($"Dátum: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         text.AppendLine($"Verzia: {AppInfo.VersionDisplay}");
         text.AppendLine($"Windows: {Environment.OSVersion}");
+        text.AppendLine("Režim: len INQUIRY, VPD 0x80 a ATA PASS-THROUGH " +
+                        "(REPORT LUNS/VPD 0x83 sa zámerne neposielajú)");
         text.AppendLine();
 
-        var pnp = await Ps.RunAsync(
-            "Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | " +
-            "Select-Object Index,Model,SerialNumber,InterfaceType,MediaType,PNPDeviceID,Size | " +
-            "Format-List | Out-String -Width 300",
-            ct, 20000).ConfigureAwait(false);
-        text.AppendLine("=== Windows PnP ===");
-        text.AppendLine(string.IsNullOrWhiteSpace(pnp) ? "nedostupné" : pnp.Trim());
+        // Všetky fyzické disky priamo z Win32_DiskDrive. Get-Disk niekedy
+        // vynechá prázdny/RAW/offline disk, a práve ten potrebujeme otestovať.
+        var diskDoc = await Ps.RunJsonAsync(@"
+Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | ForEach-Object {
+  $id = [string]$_.PNPDeviceID
+  $chain = @()
+  $cur = $id
+  for ($i = 0; $i -lt 6 -and $cur; $i++) {
+    $chain += $cur
+    $cur = [string](Get-PnpDeviceProperty -InstanceId $cur -KeyName 'DEVPKEY_Device_Parent' -ErrorAction SilentlyContinue).Data
+  }
+  [pscustomobject]@{
+    Index = [int]$_.Index
+    Model = [string]$_.Model
+    Serial = [string]$_.SerialNumber
+    Interface = [string]$_.InterfaceType
+    Media = [string]$_.MediaType
+    Size = [int64]$_.Size
+    Partitions = [int]$_.Partitions
+    Pnp = $id
+    Chain = ($chain -join ' | ')
+  }
+} | ConvertTo-Json -Compress -Depth 4", ct, 30000).ConfigureAwait(false);
+
+        var disks = new List<(int Index, string Model, string Serial, string Interface,
+            string Media, long Size, int Partitions, string Pnp, string Chain)>();
+        if (diskDoc is not null)
+        {
+            foreach (var d in Ps.Objects(diskDoc))
+            {
+                int index = Ps.Int(d, "Index");
+                if (index < 0) continue;
+                disks.Add((index, Ps.Str(d, "Model"), Ps.Str(d, "Serial"),
+                    Ps.Str(d, "Interface"), Ps.Str(d, "Media"), Ps.Long(d, "Size"),
+                    Ps.Int(d, "Partitions"), Ps.Str(d, "Pnp"), Ps.Str(d, "Chain")));
+            }
+        }
+        disks.Sort((a, b) => a.Index.CompareTo(b.Index));
+
+        text.AppendLine("=== Windows disky (Win32_DiskDrive) ===");
+        foreach (var d in disks)
+        {
+            text.AppendLine($"Disk {d.Index}: model='{d.Model}' SN='{d.Serial}' " +
+                            $"rozhranie={d.Interface} médium='{d.Media}' " +
+                            $"veľkosť={d.Size} partície={d.Partitions}");
+            text.AppendLine($"  PNP: {d.Pnp}");
+            text.AppendLine($"  Reťazec: {d.Chain}");
+        }
+        if (disks.Count == 0) text.AppendLine("žiadne disky");
         text.AppendLine();
 
         var usb = await Ps.RunAsync(
@@ -34,46 +78,105 @@ public static class UsbDiagnostics
         text.AppendLine(string.IsNullOrWhiteSpace(usb) ? "nedostupné" : usb.Trim());
         text.AppendLine();
 
-        List<DiskInfo> disks;
-        try
-        {
-            disks = await DiskInfoCatalog.LoadAsync(ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            text.AppendLine("Disky sa nepodarilo načítať: " + ex.Message);
-            return text.ToString();
-        }
+        var getDisk = await Ps.RunAsync(
+            "Get-Disk -ErrorAction SilentlyContinue | Select-Object Number,FriendlyName," +
+            "SerialNumber,BusType,PartitionStyle,OperationalStatus,HealthStatus,Size," +
+            "IsOffline,IsReadOnly | Format-Table -AutoSize | Out-String -Width 300",
+            ct, 30000).ConfigureAwait(false);
+        text.AppendLine("=== Get-Disk ===");
+        text.AppendLine(string.IsNullOrWhiteSpace(getDisk) ? "nedostupné" : getDisk.Trim());
+        text.AppendLine();
+
+        var physical = await Ps.RunAsync(
+            "Get-PhysicalDisk -ErrorAction SilentlyContinue | Select-Object DeviceId," +
+            "FriendlyName,SerialNumber,BusType,MediaType,HealthStatus,OperationalStatus," +
+            "Size | Format-Table -AutoSize | Out-String -Width 300",
+            ct, 30000).ConfigureAwait(false);
+        text.AppendLine("=== Get-PhysicalDisk ===");
+        text.AppendLine(string.IsNullOrWhiteSpace(physical) ? "nedostupné" : physical.Trim());
+        text.AppendLine();
+
+        bool anyAtaSuccess = false;
+        bool anyInvalidOpcode = false;
 
         foreach (var disk in disks)
         {
             ct.ThrowIfCancellationRequested();
-            text.AppendLine($"=== Disk {disk.Number}: {disk.Model} ===");
-            text.AppendLine($"Veľkosť: {Fmt.Bytes(disk.Size)}; zbernica: {disk.BusType}; " +
-                            $"štýl: {disk.PartitionStyle}; SN: {Fmt.Serial(disk.Serial)}");
 
-            var inquiry = AtaSmart.ReadInquiry(disk.Number);
-            text.AppendLine($"SCSI INQUIRY: model={inquiry?.Model ?? ""} " +
-                            $"serial={inquiry?.Serial ?? ""}");
+            text.AppendLine($"=== Disk {disk.Index}: {disk.Model} ===");
+            text.AppendLine($"Veľkosť: {Fmt.Bytes(disk.Size)}; rozhranie: {disk.Interface}; " +
+                            $"médium: {disk.Media}; SN: {disk.Serial}");
 
-            var identify = AtaSmart.ReadIdentify(disk.Number);
-            text.AppendLine($"ATA IDENTIFY: model={identify?.Model ?? ""} " +
-                            $"serial={identify?.Serial ?? ""} " +
-                            $"protocol={AtaSmart.LastProtocol}");
+            bool likelyNvme = disk.Model.Contains("NVME", StringComparison.OrdinalIgnoreCase) ||
+                              disk.Pnp.Contains("VEN_NVME", StringComparison.OrdinalIgnoreCase) ||
+                              disk.Pnp.StartsWith("SCSI\\DISK&VEN_NVME", StringComparison.OrdinalIgnoreCase);
 
-            var smart = SmartInfoService.Query(disk.Number, ct, 6000);
-            text.AppendLine($"S.M.A.R.T.: available={smart.Available} " +
-                            $"attributes={smart.Attributes.Count} score={smart.HealthScore} " +
-                            $"protocol={AtaSmart.LastProtocol} address={AtaSmart.LastAddress}");
-            text.AppendLine($"S.M.A.R.T. text: {smart.DisplayText}");
-            text.AppendLine($"S.M.A.R.T. error: {AtaSmart.LastError}");
+            foreach (var line in AtaSmart.ScsiInfo(disk.Index))
+                text.AppendLine("  " + line);
 
-            foreach (var attribute in smart.Attributes)
-                text.AppendLine($"  {attribute.Id,3} {attribute.Name,-32} " +
-                                $"value={attribute.Value,3} worst={attribute.Worst,3} raw={attribute.Raw}");
+            if (likelyNvme)
+            {
+                text.AppendLine("  ATA/SMART: NVMe disk, ATA PASS-THROUGH sa neposiela.");
+                text.AppendLine();
+                continue;
+            }
+
+            var identify = AtaSmart.Probe(disk.Index, smart: false);
+            text.AppendLine($"  ATA IDENTIFY: {(identify.Success.Length > 0 ? "ÁNO — " + identify.Success : "NIE")}" +
+                            (identify.Error.Length > 0 ? $" ({identify.Error})" : ""));
+            AppendProbe(text, identify);
+            if (identify.Page is not null && identify.Success.Length > 0)
+            {
+                var (serial, model) = AtaSmart.ParseIdentifyPublic(identify.Page);
+                text.AppendLine($"    model='{model}' serial='{serial}'");
+            }
+
+            var smart = AtaSmart.Probe(disk.Index, smart: true);
+            text.AppendLine($"  S.M.A.R.T.: {(smart.Success.Length > 0 ? "ÁNO — " + smart.Success : "NIE")}" +
+                            (smart.Error.Length > 0 ? $" ({smart.Error})" : ""));
+            AppendProbe(text, smart);
+
+            if (smart.Page is not null && smart.Success.Length > 0)
+            {
+                anyAtaSuccess = true;
+                var attributes = AtaSmart.ParseAttributes(smart.Page);
+                text.AppendLine($"    atribútov={attributes.Count}");
+                foreach (var attribute in attributes)
+                    text.AppendLine($"      {attribute.Id,3} value={attribute.Value,3} " +
+                                    $"worst={attribute.Worst,3} raw={attribute.Raw}");
+            }
+
+            anyInvalidOpcode |= smart.Lines.Any(l =>
+                l.Asc.Contains("asc=20", StringComparison.OrdinalIgnoreCase) ||
+                l.Asc.Contains("asc=24", StringComparison.OrdinalIgnoreCase));
+
             text.AppendLine();
         }
 
+        text.AppendLine("=== Záver ===");
+        if (anyAtaSuccess)
+            text.AppendLine("ATA PASS-THROUGH funguje aspoň na jednom disku — protokol je uvedený vyššie.");
+        else if (anyInvalidOpcode)
+            text.AppendLine("Mostík odmietol ATA PASS-THROUGH (SCSI: neplatný príkaz / pole). " +
+                            "Skontrolujte prepínač režimu boxu (JBOD/RAID/Clone) a či sú oba disky " +
+                            "vložené. V režime RAID/Clone box SMART jednotlivých diskov neposkytuje.");
+        else
+            text.AppendLine("ATA PASS-THROUGH sa nepodarilo otvoriť. Skontrolujte, či program beží " +
+                            "ako správca a či disk nie je používaný iným programom.");
+
         return text.ToString();
+    }
+
+    private static void AppendProbe(StringBuilder text, AtaSmart.AtaProbe probe)
+    {
+        text.AppendLine($"    adresa={probe.Address} directStruct={probe.DirectStructSize} " +
+                        $"nonDirectStruct={probe.NonDirectStructSize}");
+        foreach (var line in probe.Lines)
+        {
+            text.AppendLine($"    {line.Name,-13} {line.Transport,-10} {line.Cdb,-36} " +
+                            $"{line.Ms,5} ms  {line.Outcome}" +
+                            (line.Asc.Length > 0 ? $"  {line.Asc}" : "") +
+                            (line.Sense.Length > 0 && line.Outcome != "OK" ? $"  sense={line.Sense}" : ""));
+        }
     }
 }

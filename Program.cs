@@ -219,6 +219,43 @@ internal static class Program
             return diskLock.Acquired ? 0 : 2;
         }
 
+        if (args.Any(a => a.Equals("--probe", StringComparison.OrdinalIgnoreCase)))
+        {
+            var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-probe.log");
+            try
+            {
+                var numberArg = args.SkipWhile(a => !a.Equals("--probe", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).FirstOrDefault();
+                if (!int.TryParse(numberArg, out int diskNumber))
+                {
+                    File.WriteAllText(logPath, "PROBE FAIL: chýba číslo disku");
+                    return 3;
+                }
+
+                var lines = new List<string> { $"PROBE disk {diskNumber}" };
+                lines.AddRange(AtaSmart.ScsiInfo(diskNumber));
+                foreach (var smart in new[] { false, true })
+                {
+                    var probe = AtaSmart.Probe(diskNumber, smart);
+                    lines.Add($"--- {(smart ? "SMART" : "IDENTIFY")} ---");
+                    lines.Add($"address={probe.Address} success={probe.Success} " +
+                              $"directStruct={probe.DirectStructSize} " +
+                              $"nonDirectStruct={probe.NonDirectStructSize} error={probe.Error}");
+                    foreach (var line in probe.Lines)
+                        lines.Add($"{line.Name} {line.Transport} {line.Cdb} {line.Ms}ms " +
+                                  $"status={line.ScsiStatus} ioctl={line.IoctlOk} " +
+                                  $"{line.Outcome} {line.Asc} sense={line.Sense}");
+                }
+                File.WriteAllLines(logPath, lines);
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(logPath, "PROBE FAIL: " + ex);
+                return 1;
+            }
+        }
+
         if (args.Any(a => a.Equals("--atasmart", StringComparison.OrdinalIgnoreCase)))
         {
             var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-atasmart.log");

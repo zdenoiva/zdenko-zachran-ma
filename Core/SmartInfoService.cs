@@ -169,16 +169,14 @@ foreach ($a in $attrs) {
 } | ConvertTo-Json -Compress -Depth 5
 """;
 
-        var doc = await Ps.RunJsonAsync(script, ct, timeoutMs).ConfigureAwait(false);
-        if (doc is null)
-        {
-            if (!info.Nvme)
-                return new SmartInfo { DisplayText = "S.M.A.R.T: nedostupné" };
-            ComposeDisplay(info);
-            return info;
-        }
+        // ATA čítanie spustíme paralelne s WMI. Niektoré USB mostíky vôbec
+        // nie sú v Get-PhysicalDisk; vtedy je priame ATA jediný zdroj údajov.
+        Task<byte[]?>? ataTask = info.Nvme
+            ? null
+            : Task.Run(() => AtaSmart.ReadPage(diskNumber, 5000), ct);
 
-        var obj = Ps.Objects(doc).FirstOrDefault();
+        var doc = await Ps.RunJsonAsync(script, ct, timeoutMs).ConfigureAwait(false);
+        var obj = doc is null ? default : Ps.Objects(doc).FirstOrDefault();
         if (obj.ValueKind == JsonValueKind.Object && Ps.Bool(obj, "Available"))
         {
             info.Available = true;
@@ -217,43 +215,43 @@ foreach ($a in $attrs) {
                 ApplyAttributes(info);
             }
 
-            // USB-SATA mostíky často neposkytnú SMART cez WMI. Skúsime priamo ATA.
-            if (!info.Nvme)
-            {
-                var ataTask = Task.Run(() => AtaSmart.ReadPage(diskNumber));
-                byte[]? page = null;
-                try
-                {
-                    var finished = await Task.WhenAny(ataTask, Task.Delay(5000, ct))
-                        .ConfigureAwait(false);
-                    if (finished == ataTask && ataTask.IsCompletedSuccessfully)
-                        page = ataTask.Result;
-                    else
-                        Log.Warn($"S.M.A.R.T. disk {diskNumber}: ATA čítanie trvá pridlho, preskakujem.");
-                }
-                catch (OperationCanceledException) { }
+        }
 
-                if (page is null)
-                {
-                    Log.Warn($"S.M.A.R.T. disk {diskNumber}: ATA čítanie zlyhalo " +
-                             $"(adresa {AtaSmart.LastAddress}): {AtaSmart.LastError}");
-                }
+        if (ataTask is not null)
+        {
+            byte[]? page = null;
+            try
+            {
+                var finished = await Task.WhenAny(ataTask, Task.Delay(6000, ct))
+                    .ConfigureAwait(false);
+                if (finished == ataTask && ataTask.IsCompletedSuccessfully)
+                    page = ataTask.Result;
                 else
+                    Log.Warn($"S.M.A.R.T. disk {diskNumber}: ATA čítanie trvá pridlho, preskakujem.");
+            }
+            catch (OperationCanceledException) { }
+
+            if (page is null)
+            {
+                Log.Warn($"S.M.A.R.T. disk {diskNumber}: ATA čítanie zlyhalo " +
+                         $"(adresa {AtaSmart.LastAddress}): {AtaSmart.LastError}");
+            }
+            else
+            {
+                var direct = AtaSmart.ParseAttributes(page);
+                if (direct.Count > 0)
                 {
-                    var direct = AtaSmart.ParseAttributes(page);
-                    if (direct.Count > 0)
-                    {
-                        Log.Info($"S.M.A.R.T. disk {diskNumber}: ATA OK, " +
-                                 $"{direct.Count} atribútov, adresa {AtaSmart.LastAddress}, " +
-                                 $"protokol {AtaSmart.LastProtocol}");
-                        info.Attributes = direct;
-                        info.ReallocatedSectors = 0;
-                        info.PendingSectors = 0;
-                        info.UncorrectableSectors = 0;
-                        info.CrcErrors = 0;
-                        info.RemainingLife = -1;
-                        ApplyAttributes(info);
-                    }
+                    Log.Info($"S.M.A.R.T. disk {diskNumber}: ATA OK, " +
+                             $"{direct.Count} atribútov, adresa {AtaSmart.LastAddress}, " +
+                             $"protokol {AtaSmart.LastProtocol}");
+                    info.Attributes = direct;
+                    info.ReallocatedSectors = 0;
+                    info.PendingSectors = 0;
+                    info.UncorrectableSectors = 0;
+                    info.CrcErrors = 0;
+                    info.RemainingLife = -1;
+                    ApplyAttributes(info);
+                    info.Available = true;
                 }
             }
         }

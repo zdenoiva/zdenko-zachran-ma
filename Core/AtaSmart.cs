@@ -36,10 +36,16 @@ public static class AtaSmart
 
     /// <summary>Vráti 512-bajtovú SMART data page alebo null.</summary>
     public static byte[]? ReadPage(int diskNumber)
+        => ReadPage(diskNumber, 15000);
+
+    /// <summary>Vráti SMART page, pričom skúšanie variantov zastaví po budgetMs.</summary>
+    public static byte[]? ReadPage(int diskNumber, int budgetMs)
     {
+        if (ScsiDisabled) return null;
         var page = ReadPageLegacy(diskNumber);
         if (page is not null) return page;
-        return ReadPageScsi(diskNumber);
+        return ReadAtaScsi(diskNumber, 0xB0, 0xD0, 0x01, 0x01, 0x4F, 0xC2,
+            requireSmart: true, budgetMs);
     }
 
     private static byte[]? ReadPageLegacy(int diskNumber)
@@ -100,7 +106,10 @@ public static class AtaSmart
         public byte DataIn;
         public uint DataTransferLength;
         public uint TimeOutValue;
-        public uint DataBufferOffset;
+        // V 64-bit Windows je DataBufferOffset typu ULONG_PTR, nie ULONG.
+        // Pri ULONG vychádza veľkosť štruktúry 44 namiesto 56 a ovládač
+        // vráti ERROR_REVISION_MISMATCH (1306).
+        public UIntPtr DataBufferOffset;
         public uint SenseInfoOffset;
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
         public byte[] Cdb;
@@ -135,18 +144,208 @@ public static class AtaSmart
         => ReadAtaScsi(diskNumber, 0xB0, 0xD0, 0x01, 0x01, 0x4F, 0xC2, requireSmart: true);
 
     /// <summary>Prečíta ATA IDENTIFY DEVICE (skutočný model a sériové číslo).</summary>
-    public static (string Serial, string Model)? ReadIdentify(int diskNumber)
+    public static (string Serial, string Model)? ReadIdentify(int diskNumber, int budgetMs = 6000)
     {
+        if (ScsiDisabled) return null;
         var page = ReadAtaScsi(diskNumber, 0xEC, 0x00, 0x01, 0x00, 0x00, 0x00,
-            requireSmart: false);
+            requireSmart: false, budgetMs);
         if (page is null) return null;
         var (serial, model) = ParseIdentify(page);
         if (serial.Length == 0 && model.Length == 0) return null;
         return (serial, model);
     }
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, object> Gates = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, string> Preferred = new();
+    private static readonly Mutex ScsiMutex = new(false, @"Local\ZdenkoZachranMa-scsi");
+
+    /// <summary>Núdzový vypínač: ZDENKO_NO_SCSI=1 vypne všetky priame SCSI/ATA príkazy.</summary>
+    public static bool ScsiDisabled =>
+        !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ZDENKO_NO_SCSI"));
+
+    private static bool EnterScsi(int timeoutMs = 10000)
+    {
+        if (ScsiDisabled) return false;
+        try { return ScsiMutex.WaitOne(timeoutMs); }
+        catch (AbandonedMutexException) { return true; }
+        catch { return false; }
+    }
+
+    private static void LeaveScsi()
+    {
+        try { ScsiMutex.ReleaseMutex(); } catch { }
+    }
+
+    private static object Gate(int diskNumber)
+        => Gates.GetOrAdd(diskNumber, _ => new object());
+
+    /// <summary>Poradie CDB variantov pre daný disk a príkaz.</summary>
+    private static List<(string Name, byte[] Cdb, byte CdbLength)> BuildVariants(
+        int diskNumber, byte command, byte features, byte count,
+        byte lbaLow, byte lbaMid, byte lbaHigh, byte lun)
+    {
+        var list = new List<(string Name, byte[] Cdb, byte CdbLength)>();
+
+        void Add12(string name, byte opcode, byte protocol, byte flags)
+        {
+            var cdb = new byte[16];
+            cdb[0] = opcode;
+            cdb[1] = protocol;
+            cdb[2] = flags;
+            cdb[3] = features;
+            cdb[4] = count;
+            cdb[5] = lbaLow;
+            cdb[6] = lbaMid;
+            cdb[7] = lbaHigh;
+            cdb[8] = 0xA0;
+            cdb[9] = command;
+            list.Add((name, cdb, 12));
+        }
+
+        void Add16(string name, byte flags)
+        {
+            var cdb = new byte[16];
+            cdb[0] = 0x85;
+            cdb[1] = 0x08;
+            cdb[2] = flags;
+            cdb[3] = 0x00;      // FEATURES (15:8)
+            cdb[4] = features;  // FEATURES (7:0)
+            cdb[5] = 0x00;      // SECTOR_COUNT (15:8)
+            cdb[6] = count;     // SECTOR_COUNT (7:0)
+            cdb[7] = 0x00;      // LBA_LOW (15:8)
+            cdb[8] = lbaLow;    // LBA_LOW (7:0)
+            cdb[9] = 0x00;      // LBA_MID (15:8)
+            cdb[10] = lbaMid;   // LBA_MID (7:0)
+            cdb[11] = 0x00;     // LBA_HIGH (15:8)
+            cdb[12] = lbaHigh;  // LBA_HIGH (7:0)
+            cdb[13] = 0xA0;     // DEVICE
+            cdb[14] = command;  // COMMAND
+            list.Add((name, cdb, 16));
+        }
+
+        // 1. Štandardné SAT-12 (rovnaké ako CrystalDiskInfo).
+        Add12("SAT12", 0xA1, 0x08, 0x0E);
+
+        // 2. Štandardné SAT-16 (AXAGON a väčšina USB mostíkov).
+        Add16("SAT16-2E", 0x2E);
+
+        // 3. ASM1352R (dvojdiskové USB doku/klonovací box):
+        //    protokol 0x0D = SATA port 0, 0x0E = SATA port 1.
+        byte firstAsm = lun == 1 ? (byte)0x0E : (byte)0x0D;
+        byte secondAsm = firstAsm == 0x0D ? (byte)0x0E : (byte)0x0D;
+        Add12($"ASM1352R-{firstAsm:X2}", 0xA1, (byte)(firstAsm << 1), 0x0E);
+        Add12($"ASM1352R-{secondAsm:X2}", 0xA1, (byte)(secondAsm << 1), 0x0E);
+
+        // 4. JMicron USB mostíky (napr. JMS578/JMS561) používajú vendor CDB DF 10.
+        var jmicron = new byte[16];
+        jmicron[0] = 0xDF;
+        jmicron[1] = 0x10;
+        jmicron[2] = 0x00;
+        jmicron[3] = 0x02;
+        jmicron[4] = 0x00;
+        jmicron[5] = command == 0xB0 ? (byte)0xD0 : (byte)0x00;
+        jmicron[6] = 0x01;
+        jmicron[7] = command == 0xB0 ? (byte)0x01 : (byte)0x00;
+        jmicron[8] = command == 0xB0 ? (byte)0x4F : (byte)0x00;
+        jmicron[9] = command == 0xB0 ? (byte)0xC2 : (byte)0x00;
+        jmicron[10] = 0xA0;
+        jmicron[11] = command;
+        list.Add(("JMicron", jmicron, 12));
+
+        // 5. Sunplus USB mostíky.
+        var sunplus = new byte[16];
+        sunplus[0] = 0xF8;
+        sunplus[1] = 0x00;
+        sunplus[2] = 0x22;
+        sunplus[3] = 0x10;
+        sunplus[4] = 0x01;
+        sunplus[5] = command == 0xB0 ? (byte)0xD0 : (byte)0x00;
+        sunplus[6] = 0x01;
+        sunplus[7] = 0x00;
+        sunplus[8] = command == 0xB0 ? (byte)0x4F : (byte)0x00;
+        sunplus[9] = command == 0xB0 ? (byte)0xC2 : (byte)0x00;
+        sunplus[10] = 0xA0;
+        sunplus[11] = command;
+        list.Add(("Sunplus", sunplus, 12));
+
+        // 6. Cypress USB mostíky.
+        var cypress = new byte[16];
+        cypress[0] = 0x24;
+        cypress[1] = 0x24;
+        cypress[2] = 0x00;
+        cypress[3] = 0xBE;
+        cypress[4] = 0x01;
+        cypress[5] = 0x00;
+        cypress[6] = command == 0xB0 ? (byte)0xD0 : (byte)0x00;
+        cypress[9] = command == 0xB0 ? (byte)0x4F : (byte)0x00;
+        cypress[10] = command == 0xB0 ? (byte)0xC2 : (byte)0x00;
+        cypress[11] = 0xA0;
+        cypress[12] = command;
+        list.Add(("Cypress", cypress, 16));
+
+        // 7. Prolific USB mostíky.
+        var prolific = new byte[16];
+        prolific[0] = 0xD8;
+        prolific[1] = 0x15;
+        prolific[2] = 0x00;
+        prolific[3] = command == 0xB0 ? (byte)0xD0 : (byte)0x00;
+        prolific[4] = 0x06;
+        prolific[5] = 0x7B;
+        prolific[6] = 0x00;
+        prolific[7] = 0x00;
+        prolific[8] = 0x02;
+        prolific[9] = 0x00;
+        prolific[10] = 0x01;
+        prolific[11] = 0x00;
+        prolific[12] = command == 0xB0 ? (byte)0x4F : (byte)0x00;
+        prolific[13] = command == 0xB0 ? (byte)0xC2 : (byte)0x00;
+        prolific[14] = 0xA0;
+        prolific[15] = command;
+        list.Add(("Prolific", prolific, 16));
+
+        // 8. Štandardné SAT-16 so správnymi flagmi podľa SAT-4.
+        Add16("SAT16-0E", 0x0E);
+
+        // Ak už v tejto relácii niektorý variant uspel, skúsime ho ako prvý.
+        if (Preferred.TryGetValue(diskNumber, out string? name))
+        {
+            int index = list.FindIndex(v => v.Name == name);
+            if (index > 0)
+            {
+                var preferred = list[index];
+                list.RemoveAt(index);
+                list.Insert(0, preferred);
+            }
+        }
+
+        return list;
+    }
+
     private static byte[]? ReadAtaScsi(int diskNumber, byte command, byte features,
-        byte count, byte lbaLow, byte lbaMid, byte lbaHigh, bool requireSmart)
+        byte count, byte lbaLow, byte lbaMid, byte lbaHigh, bool requireSmart,
+        int budgetMs = 15000)
+    {
+        lock (Gate(diskNumber))
+        {
+            if (!EnterScsi())
+            {
+                LastError = "SCSI je zaneprázdnené alebo vypnuté";
+                return null;
+            }
+            try
+            {
+                return ReadAtaScsiCore(diskNumber, command, features, count,
+                    lbaLow, lbaMid, lbaHigh, requireSmart, budgetMs);
+            }
+            finally
+            {
+                LeaveScsi();
+            }
+        }
+    }
+
+    private static byte[]? ReadAtaScsiCore(int diskNumber, byte command, byte features,
+        byte count, byte lbaLow, byte lbaMid, byte lbaHigh, bool requireSmart, int budgetMs)
     {
         SafeFileHandle? handle = null;
         IntPtr buffer = IntPtr.Zero;
@@ -190,127 +389,17 @@ public static class AtaSmart
             data = Marshal.AllocHGlobal(PageSize);
             buffer = Marshal.AllocHGlobal(structSize + senseSize);
 
-            var variants = new List<(byte[] Cdb, byte CdbLength)>();
-
-            // ASM1352R (dvojdiskové USB doku): ATA PASS-THROUGH(12) s protokolom
-            // 0x0D pre SATA port 0 a 0x0E pre SATA port 1. Skúšame port podľa LUN.
-            byte firstAsm = lun == 1 ? (byte)0x0E : (byte)0x0D;
-            byte secondAsm = firstAsm == 0x0D ? (byte)0x0E : (byte)0x0D;
-            foreach (byte protocol in new[] { firstAsm, secondAsm })
-            {
-                var cdb = new byte[16];
-                cdb[0] = 0xA1;
-                cdb[1] = (byte)(protocol << 1);
-                cdb[2] = 0x2E;
-                cdb[3] = features;
-                cdb[4] = count;
-                cdb[5] = lbaLow;
-                cdb[6] = lbaMid;
-                cdb[7] = lbaHigh;
-                cdb[8] = 0xA0;
-                cdb[9] = command;
-                variants.Add((cdb, 12));
-            }
-
-            // JMicron USB mostíky (napr. JMS578/JMS561) používajú vendor CDB DF 10.
-            var jmicron = new byte[16];
-            jmicron[0] = 0xDF;
-            jmicron[1] = 0x10;
-            jmicron[2] = 0x00;
-            jmicron[3] = 0x02;
-            jmicron[4] = 0x00;
-            jmicron[5] = command == 0xB0 ? (byte)0xD0 : (byte)0x00;
-            jmicron[6] = 0x01;
-            jmicron[7] = command == 0xB0 ? (byte)0x01 : (byte)0x00;
-            jmicron[8] = command == 0xB0 ? (byte)0x4F : (byte)0x00;
-            jmicron[9] = command == 0xB0 ? (byte)0xC2 : (byte)0x00;
-            jmicron[10] = 0xA0;
-            jmicron[11] = command;
-            variants.Add((jmicron, 12));
-
-            // Sunplus USB mostíky.
-            var sunplus = new byte[16];
-            sunplus[0] = 0xF8;
-            sunplus[1] = 0x00;
-            sunplus[2] = 0x22;
-            sunplus[3] = 0x10;
-            sunplus[4] = 0x01;
-            sunplus[5] = command == 0xB0 ? (byte)0xD0 : (byte)0x00;
-            sunplus[6] = 0x01;
-            sunplus[7] = 0x00;
-            sunplus[8] = command == 0xB0 ? (byte)0x4F : (byte)0x00;
-            sunplus[9] = command == 0xB0 ? (byte)0xC2 : (byte)0x00;
-            sunplus[10] = 0xA0;
-            sunplus[11] = command;
-            variants.Add((sunplus, 12));
-
-            // Cypress USB mostíky.
-            var cypress = new byte[16];
-            cypress[0] = 0x24;
-            cypress[1] = 0x24;
-            cypress[2] = 0x00;
-            cypress[3] = 0xBE;
-            cypress[4] = 0x01;
-            cypress[5] = 0x00;
-            cypress[6] = command == 0xB0 ? (byte)0xD0 : (byte)0x00;
-            cypress[9] = command == 0xB0 ? (byte)0x4F : (byte)0x00;
-            cypress[10] = command == 0xB0 ? (byte)0xC2 : (byte)0x00;
-            cypress[11] = 0xA0;
-            cypress[12] = command;
-            variants.Add((cypress, 16));
-
-            // Prolific USB mostíky.
-            var prolific = new byte[16];
-            prolific[0] = 0xD8;
-            prolific[1] = 0x15;
-            prolific[2] = 0x00;
-            prolific[3] = command == 0xB0 ? (byte)0xD0 : (byte)0x00;
-            prolific[4] = 0x06;
-            prolific[5] = 0x7B;
-            prolific[6] = 0x00;
-            prolific[7] = 0x00;
-            prolific[8] = 0x02;
-            prolific[9] = 0x00;
-            prolific[10] = 0x01;
-            prolific[11] = 0x00;
-            prolific[12] = command == 0xB0 ? (byte)0x4F : (byte)0x00;
-            prolific[13] = command == 0xB0 ? (byte)0xC2 : (byte)0x00;
-            prolific[14] = 0xA0;
-            prolific[15] = command;
-            variants.Add((prolific, 16));
-
-            // Štandardné SAT (AHCI, väčšina USB mostíkov).
-            foreach (byte direction in new byte[] { 0x2E, 0x3E })
-            {
-                var cdb16 = new byte[16];
-                cdb16[0] = 0x85;
-                cdb16[1] = 0x08;
-                cdb16[2] = direction;
-                cdb16[4] = features;
-                cdb16[6] = count;
-                cdb16[8] = lbaLow;
-                cdb16[10] = lbaMid;
-                cdb16[12] = lbaHigh;
-                cdb16[13] = 0xA0;
-                cdb16[14] = command;
-                variants.Add((cdb16, 16));
-
-                var cdb12 = new byte[16];
-                cdb12[0] = 0xA1;
-                cdb12[1] = 0x08;
-                cdb12[2] = direction;
-                cdb12[3] = features;
-                cdb12[4] = count;
-                cdb12[5] = lbaLow;
-                cdb12[6] = lbaMid;
-                cdb12[7] = lbaHigh;
-                cdb12[8] = 0xA0;
-                cdb12[9] = command;
-                variants.Add((cdb12, 12));
-            }
+            var variants = BuildVariants(diskNumber, command, features, count,
+                lbaLow, lbaMid, lbaHigh, lun);
+            var budget = System.Diagnostics.Stopwatch.StartNew();
 
             foreach (var variant in variants)
             {
+                if (budget.ElapsedMilliseconds > budgetMs)
+                {
+                    errors.Add("timeout");
+                    break;
+                }
                 var packet = new ScsiPassThroughDirect
                 {
                     Length = (ushort)structSize,
@@ -321,7 +410,7 @@ public static class AtaSmart
                     SenseInfoLength = (byte)senseSize,
                     DataIn = 1,
                     DataTransferLength = PageSize,
-                    TimeOutValue = 5,
+                    TimeOutValue = 2,
                     DataBuffer = data,
                     SenseInfoOffset = (uint)structSize,
                     Cdb = variant.Cdb
@@ -358,7 +447,8 @@ public static class AtaSmart
                     if (attributes.Count >= 3 &&
                         attributes.Any(a => a.Id is 5 or 9 or 194 or 197 or 198))
                     {
-                        LastProtocol = $"{variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
+                        Preferred[diskNumber] = variant.Name;
+                        LastProtocol = $"{variant.Name} {variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
                         return page;
                     }
                     errors.Add($"empty {variant.Cdb[0]:X2}/{variant.Cdb[2]:X2} " +
@@ -369,7 +459,8 @@ public static class AtaSmart
                     var (serial, model) = ParseIdentify(page);
                     if (serial.Length > 0 || model.Length > 0)
                     {
-                        LastProtocol = $"{variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
+                        Preferred[diskNumber] = variant.Name;
+                        LastProtocol = $"{variant.Name} {variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
                         return page;
                     }
                     errors.Add($"empty-identify {variant.Cdb[0]:X2}/{variant.Cdb[2]:X2} " +
@@ -385,6 +476,11 @@ public static class AtaSmart
             {
                 foreach (var variant in variants)
                 {
+                    if (budget.ElapsedMilliseconds > budgetMs)
+                    {
+                        errors.Add("timeout");
+                        break;
+                    }
                     for (int i = 0; i < ndSize; i++) Marshal.WriteByte(ndBuffer, i, 0);
                     var packet = new ScsiPassThrough
                     {
@@ -396,8 +492,8 @@ public static class AtaSmart
                         SenseInfoLength = (byte)senseSize,
                         DataIn = 1,
                         DataTransferLength = PageSize,
-                        TimeOutValue = 5,
-                        DataBufferOffset = (uint)ndStruct,
+                        TimeOutValue = 2,
+                        DataBufferOffset = new UIntPtr((uint)ndStruct),
                         SenseInfoOffset = (uint)(ndStruct + PageSize),
                         Cdb = variant.Cdb
                     };
@@ -430,7 +526,8 @@ public static class AtaSmart
                         if (attributes.Count >= 3 &&
                             attributes.Any(a => a.Id is 5 or 9 or 194 or 197 or 198))
                         {
-                            LastProtocol = $"ND/{variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
+                            Preferred[diskNumber] = variant.Name;
+                            LastProtocol = $"ND {variant.Name} {variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
                             return page;
                         }
                     }
@@ -439,7 +536,8 @@ public static class AtaSmart
                         var (serial, model) = ParseIdentify(page);
                         if (serial.Length > 0 || model.Length > 0)
                         {
-                            LastProtocol = $"ND/{variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
+                            Preferred[diskNumber] = variant.Name;
+                            LastProtocol = $"ND {variant.Name} {variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
                             return page;
                         }
                     }
@@ -492,6 +590,19 @@ public static class AtaSmart
     }
 
     private static byte[]? ReadScsiInquiry(int diskNumber, bool evpd, byte page, int dataLength)
+    {
+        if (!EnterScsi()) return null;
+        try
+        {
+            return ReadScsiInquiryCore(diskNumber, evpd, page, dataLength);
+        }
+        finally
+        {
+            LeaveScsi();
+        }
+    }
+
+    private static byte[]? ReadScsiInquiryCore(int diskNumber, bool evpd, byte page, int dataLength)
     {
         SafeFileHandle? handle = null;
         IntPtr buffer = IntPtr.Zero;
@@ -547,7 +658,7 @@ public static class AtaSmart
                 TimeOutValue = 5,
                 DataBuffer = data,
                 SenseInfoOffset = (uint)structSize,
-                Cdb = cdb
+                Cdb = PadCdb(cdb)
             };
 
             for (int i = 0; i < structSize + senseSize; i++) Marshal.WriteByte(buffer, i, 0);
@@ -579,6 +690,454 @@ public static class AtaSmart
         }
     }
 
+    public sealed class AtaProbeLine
+    {
+        public string Name = "";
+        public string Transport = "";
+        public string Cdb = "";
+        public bool IoctlOk;
+        public int Win32Error;
+        public int Returned;
+        public byte ScsiStatus;
+        public string Sense = "";
+        public string Asc = "";
+        public long Ms;
+        public string Outcome = "";
+    }
+
+    public sealed class AtaProbe
+    {
+        public string Address = "";
+        public string Error = "";
+        public string Success = "";
+        public int DirectStructSize;
+        public int NonDirectStructSize;
+        public byte[]? Page;
+        public List<AtaProbeLine> Lines = new();
+    }
+
+    /// <summary>Vyskúša všetky varianty ATA PASS-THROUGH a vráti presný výsledok.</summary>
+    public static AtaProbe Probe(int diskNumber, bool smart, int timeoutSeconds = 2)
+    {
+        var result = new AtaProbe
+        {
+            DirectStructSize = Marshal.SizeOf<ScsiPassThroughDirect>(),
+            NonDirectStructSize = Marshal.SizeOf<ScsiPassThrough>()
+        };
+
+        lock (Gate(diskNumber))
+        {
+            if (!EnterScsi())
+            {
+                result.Error = ScsiDisabled
+                    ? "SCSI je vypnuté (ZDENKO_NO_SCSI)"
+                    : "SCSI je zaneprázdnené";
+                return result;
+            }
+
+            try
+            {
+            SafeFileHandle? handle = null;
+            try
+            {
+                handle = CreateFileW($@"\\.\PhysicalDrive{diskNumber}",
+                    GenericRead | GenericWrite, FileShareRead | FileShareWrite,
+                    IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+                if (handle.IsInvalid)
+                {
+                    result.Error = "open " + Marshal.GetLastWin32Error();
+                    return result;
+                }
+
+                if (!TryGetAddress(handle, out byte pathId, out byte targetId, out byte lun))
+                {
+                    result.Error = "SCSI_GET_ADDRESS zlyhalo";
+                    return result;
+                }
+                result.Address = $"{pathId}/{targetId}/{lun}";
+
+                byte command = smart ? (byte)0xB0 : (byte)0xEC;
+                byte features = smart ? (byte)0xD0 : (byte)0x00;
+                byte count = smart ? (byte)0x01 : (byte)0x01;
+                byte lbaLow = smart ? (byte)0x01 : (byte)0x00;
+                byte lbaMid = smart ? (byte)0x4F : (byte)0x00;
+                byte lbaHigh = smart ? (byte)0xC2 : (byte)0x00;
+
+                var variants = BuildVariants(diskNumber, command, features, count,
+                    lbaLow, lbaMid, lbaHigh, lun);
+
+                var total = System.Diagnostics.Stopwatch.StartNew();
+                foreach (bool direct in new[] { true, false })
+                {
+                    foreach (var variant in variants)
+                    {
+                        if (total.ElapsedMilliseconds > 20000)
+                        {
+                            result.Error = "časový limit 20 s";
+                            return result;
+                        }
+                        var line = new AtaProbeLine
+                        {
+                            Name = variant.Name,
+                            Transport = direct ? "direct" : "non-direct",
+                            Cdb = Convert.ToHexString(variant.Cdb, 0, variant.CdbLength)
+                        };
+                        var watch = System.Diagnostics.Stopwatch.StartNew();
+                        var page = direct
+                            ? SendDirect(handle, pathId, targetId, lun, variant.Cdb,
+                                variant.CdbLength, PageSize, timeoutSeconds, out line.ScsiStatus,
+                                out string senseHex, out line.Win32Error, out line.Returned)
+                            : SendNonDirect(handle, pathId, targetId, lun, variant.Cdb,
+                                variant.CdbLength, PageSize, timeoutSeconds, out line.ScsiStatus,
+                                out senseHex, out line.Win32Error, out line.Returned);
+                        watch.Stop();
+                        line.Ms = watch.ElapsedMilliseconds;
+                        line.Sense = senseHex;
+                        line.IoctlOk = line.Win32Error == 0 && line.Returned > 0;
+                        line.Asc = DecodeSense(senseHex);
+
+                        if (line.IoctlOk && line.ScsiStatus == 0)
+                        {
+                            if (page is not null && IsUsable(page, smart))
+                            {
+                                line.Outcome = "OK";
+                                result.Success = $"{line.Transport} {variant.Name}";
+                                result.Page = page;
+                                Preferred[diskNumber] = variant.Name;
+                                result.Lines.Add(line);
+                                return result;
+                            }
+                            line.Outcome = "prázdne dáta";
+                        }
+                        else if (line.IoctlOk)
+                        {
+                            line.Outcome = "SCSI status " + line.ScsiStatus;
+                        }
+                        else
+                        {
+                            line.Outcome = "IOCTL " + line.Win32Error;
+                        }
+                        result.Lines.Add(line);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Error = ex.Message;
+            }
+            finally
+            {
+                try { handle?.Dispose(); } catch { }
+            }
+            }
+            finally
+            {
+                LeaveScsi();
+            }
+        }
+
+        return result;
+    }
+
+    private static bool IsUsable(byte[] page, bool smart)
+    {
+        if (smart)
+        {
+            var attributes = ParseAttributes(page);
+            return attributes.Count >= 3 &&
+                   attributes.Any(a => a.Id is 5 or 9 or 194 or 197 or 198);
+        }
+        var (serial, model) = ParseIdentify(page);
+        return serial.Length > 0 || model.Length > 0;
+    }
+
+    private static string DecodeSense(string senseHex)
+    {
+        if (string.IsNullOrWhiteSpace(senseHex)) return "";
+        try
+        {
+            var bytes = Convert.FromHexString(senseHex);
+            if (bytes.Length < 14) return "";
+            int key = (bytes[0] & 0x7F) is 0x72 or 0x73
+                ? bytes[1] & 0x0F
+                : bytes[2] & 0x0F;
+            int asc = bytes[12];
+            int ascq = bytes[13];
+            string text = $"key={key} asc={asc:X2} ascq={ascq:X2}";
+            return key switch
+            {
+                0x05 when asc == 0x20 => text + " (neplatný príkaz)",
+                0x05 when asc == 0x24 => text + " (neplatné pole v CDB)",
+                0x05 when asc == 0x25 => text + " (neplatný LUN)",
+                0x02 => text + " (disk nie je pripravený)",
+                0x04 => text + " (hardvérová chyba)",
+                _ => text
+            };
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    private static bool TryGetAddress(SafeFileHandle handle,
+        out byte pathId, out byte targetId, out byte lun)
+    {
+        pathId = 0;
+        targetId = 0;
+        lun = 0;
+        IntPtr address = Marshal.AllocHGlobal(8);
+        try
+        {
+            for (int i = 0; i < 8; i++) Marshal.WriteByte(address, i, 0);
+            if (!DeviceIoControlPtr(handle, IoctlScsiGetAddress,
+                    IntPtr.Zero, 0, address, 8, out int addressReturned, IntPtr.Zero) ||
+                addressReturned < 8)
+                return false;
+            pathId = Marshal.ReadByte(address, 5);
+            targetId = Marshal.ReadByte(address, 6);
+            lun = Marshal.ReadByte(address, 7);
+            return true;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(address);
+        }
+    }
+
+    private static byte[] PadCdb(byte[] cdb)
+    {
+        if (cdb.Length == 16) return cdb;
+        var padded = new byte[16];
+        Array.Copy(cdb, padded, Math.Min(16, cdb.Length));
+        return padded;
+    }
+
+    private static byte[]? SendDirect(SafeFileHandle handle, byte pathId, byte targetId,
+        byte lun, byte[] cdb, byte cdbLength, int dataLength, int timeoutSeconds,
+        out byte scsiStatus, out string senseHex, out int win32, out int returned)
+    {
+        scsiStatus = 0;
+        senseHex = "";
+        win32 = 0;
+        returned = 0;
+
+        int structSize = Marshal.SizeOf<ScsiPassThroughDirect>();
+        const int senseSize = 32;
+        IntPtr data = Marshal.AllocHGlobal(Math.Max(1, dataLength));
+        IntPtr buffer = Marshal.AllocHGlobal(structSize + senseSize);
+        try
+        {
+            var packet = new ScsiPassThroughDirect
+            {
+                Length = (ushort)structSize,
+                PathId = pathId,
+                TargetId = targetId,
+                Lun = lun,
+                CdbLength = cdbLength,
+                SenseInfoLength = senseSize,
+                DataIn = 1,
+                DataTransferLength = (uint)dataLength,
+                TimeOutValue = (uint)timeoutSeconds,
+                DataBuffer = data,
+                SenseInfoOffset = (uint)structSize,
+                Cdb = PadCdb(cdb)
+            };
+
+            for (int i = 0; i < structSize + senseSize; i++) Marshal.WriteByte(buffer, i, 0);
+            Marshal.StructureToPtr(packet, buffer, false);
+
+            if (!DeviceIoControlPtr(handle, IoctlScsiPassThroughDirect,
+                    buffer, structSize + senseSize, buffer, structSize + senseSize,
+                    out returned, IntPtr.Zero) || returned <= 0)
+            {
+                win32 = Marshal.GetLastWin32Error();
+                return null;
+            }
+
+            var back = Marshal.PtrToStructure<ScsiPassThroughDirect>(buffer);
+            scsiStatus = back.ScsiStatus;
+            var sense = new byte[senseSize];
+            Marshal.Copy(buffer + structSize, sense, 0, senseSize);
+            senseHex = Convert.ToHexString(sense);
+            if (scsiStatus != 0) return null;
+
+            var page = new byte[dataLength];
+            Marshal.Copy(data, page, 0, dataLength);
+            return page;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
+            Marshal.FreeHGlobal(data);
+        }
+    }
+
+    private static byte[]? SendNonDirect(SafeFileHandle handle, byte pathId, byte targetId,
+        byte lun, byte[] cdb, byte cdbLength, int dataLength, int timeoutSeconds,
+        out byte scsiStatus, out string senseHex, out int win32, out int returned)
+    {
+        scsiStatus = 0;
+        senseHex = "";
+        win32 = 0;
+        returned = 0;
+
+        int structSize = Marshal.SizeOf<ScsiPassThrough>();
+        const int senseSize = 32;
+        int size = structSize + dataLength + senseSize;
+        IntPtr buffer = Marshal.AllocHGlobal(size);
+        try
+        {
+            for (int i = 0; i < size; i++) Marshal.WriteByte(buffer, i, 0);
+            var packet = new ScsiPassThrough
+            {
+                Length = (ushort)structSize,
+                PathId = pathId,
+                TargetId = targetId,
+                Lun = lun,
+                CdbLength = cdbLength,
+                SenseInfoLength = senseSize,
+                DataIn = 1,
+                DataTransferLength = (uint)dataLength,
+                TimeOutValue = (uint)timeoutSeconds,
+                DataBufferOffset = new UIntPtr((uint)structSize),
+                SenseInfoOffset = (uint)(structSize + dataLength),
+                Cdb = PadCdb(cdb)
+            };
+            Marshal.StructureToPtr(packet, buffer, false);
+
+            if (!DeviceIoControlPtr(handle, IoctlScsiPassThrough,
+                    buffer, size, buffer, size, out returned, IntPtr.Zero) || returned <= 0)
+            {
+                win32 = Marshal.GetLastWin32Error();
+                return null;
+            }
+
+            var back = Marshal.PtrToStructure<ScsiPassThrough>(buffer);
+            scsiStatus = back.ScsiStatus;
+            var sense = new byte[senseSize];
+            Marshal.Copy(buffer + structSize + dataLength, sense, 0, senseSize);
+            senseHex = Convert.ToHexString(sense);
+            if (scsiStatus != 0) return null;
+
+            var page = new byte[dataLength];
+            Marshal.Copy(buffer + structSize, page, 0, dataLength);
+            return page;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
+        }
+    }
+
+    /// <summary>SCSI INQUIRY, VPD 0x80 a SCSI adresa pre diagnostiku.</summary>
+    public static List<string> ScsiInfo(int diskNumber)
+    {
+        var lines = new List<string>();
+        lock (Gate(diskNumber))
+        {
+            if (!EnterScsi())
+            {
+                lines.Add(ScsiDisabled
+                    ? "SCSI je vypnuté (ZDENKO_NO_SCSI)"
+                    : "SCSI je zaneprázdnené");
+                return lines;
+            }
+
+            try
+            {
+            SafeFileHandle? handle = null;
+            try
+            {
+                handle = CreateFileW($@"\\.\PhysicalDrive{diskNumber}",
+                    GenericRead | GenericWrite, FileShareRead | FileShareWrite,
+                    IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+                if (handle.IsInvalid)
+                {
+                    lines.Add("open zlyhalo: " + Marshal.GetLastWin32Error());
+                    return lines;
+                }
+                if (!TryGetAddress(handle, out byte pathId, out byte targetId, out byte lun))
+                {
+                    lines.Add("SCSI_GET_ADDRESS zlyhalo");
+                    return lines;
+                }
+                lines.Add($"SCSI adresa: {pathId}/{targetId}/{lun}");
+
+                // Zámerne posielame len INQUIRY a VPD 0x80. Tieto príkazy sú
+                // overené na viacerých mostíkoch; REPORT LUNS, VPD 0x83 ani
+                // READ CAPACITY neposielame — na niektorých firmvéroch USB
+                // mostíkov dokážu zraziť systémový ovládač.
+                SendCdb(handle, pathId, targetId, lun, new byte[] { 0x12, 0, 0, 0, 96, 0 },
+                    96, lines, "INQUIRY");
+                SendCdb(handle, pathId, targetId, lun, new byte[] { 0x12, 1, 0x80, 0, 255, 0 },
+                    255, lines, "VPD 0x80");
+            }
+            catch (Exception ex)
+            {
+                lines.Add("chyba: " + ex.Message);
+            }
+            finally
+            {
+                try { handle?.Dispose(); } catch { }
+            }
+            }
+            finally
+            {
+                LeaveScsi();
+            }
+        }
+        return lines;
+    }
+
+    private static void SendCdb(SafeFileHandle handle, byte pathId, byte targetId, byte lun,
+        byte[] cdb, int length, List<string> lines, string label)
+    {
+        var data = SendDirect(handle, pathId, targetId, lun, cdb, (byte)cdb.Length,
+            length, 3, out byte status, out string sense, out int win32, out int returned);
+        if (data is null)
+        {
+            lines.Add($"{label}: zlyhalo (ioctl={win32}, status={status}, sense={sense}, " +
+                      $"vrátené={returned})");
+            return;
+        }
+
+        int used = Math.Min(length, 32);
+        lines.Add($"{label}: {Convert.ToHexString(data, 0, used)}");
+        if (label == "INQUIRY" && data.Length >= 36)
+        {
+            var vendor = Encoding.ASCII.GetString(data, 8, 8).Trim();
+            var product = Encoding.ASCII.GetString(data, 16, 16).Trim();
+            var revision = Encoding.ASCII.GetString(data, 32, 4).Trim();
+            lines.Add($"  typ={data[0] & 0x1F} vendor='{vendor}' produkt='{product}' " +
+                      $"revízia='{revision}'");
+        }
+        if (label is "VPD 0x80" && data.Length > 4)
+        {
+            int count = Math.Min(((data[2] << 8) | data[3]), data.Length - 4);
+            lines.Add("  sériové číslo: " +
+                      Encoding.ASCII.GetString(data, 4, Math.Max(0, count)).Trim('\0', ' '));
+        }
+        if (label == "REPORT LUNS" && data.Length >= 8)
+        {
+            int count = Math.Min(data[3], (data.Length - 8) / 8);
+            var luns = new List<string>();
+            for (int i = 0; i < count; i++)
+            {
+                int offset = 8 + i * 8;
+                if (offset + 1 >= data.Length) break;
+                luns.Add(data[offset].ToString("X2"));
+            }
+            lines.Add("  LUNy: " + (luns.Count == 0 ? "(žiadne)" : string.Join(", ", luns)));
+        }
+        if (label == "READ CAPACITY" && data.Length >= 8)
+        {
+            uint lastLba = (uint)((data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3]);
+            uint block = (uint)((data[4] << 24) | (data[5] << 16) | (data[6] << 8) | data[7]);
+            if (block > 0) lines.Add($"  kapacita: {(lastLba + 1L) * block} B, blok {block} B");
+        }
+    }
+
     private static bool AtaRecoveredOk(byte[] sense)
     {
         if (sense.Length < 8) return false;
@@ -607,6 +1166,9 @@ public static class AtaSmart
         }
         return false;
     }
+
+    public static (string Serial, string Model) ParseIdentifyPublic(byte[] page)
+        => ParseIdentify(page);
 
     private static (string Serial, string Model) ParseIdentify(byte[] page)
     {
@@ -662,3 +1224,4 @@ public static class AtaSmart
         buffer[offset + 3] = (byte)(value >> 24);
     }
 }
+

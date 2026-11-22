@@ -88,12 +88,29 @@ public static class DiskInfoCatalog
             }
         }
 
+        // Get-Disk vie disk vynechať (prázdny, RAW, offline). Doplníme ho
+        // z Win32_DiskDrive, aby sa dal vybrať a aby sa mu načítal SMART.
+        var physical = await PhysicalDiskCatalog.LoadAsync(ct).ConfigureAwait(false);
+        foreach (var p in physical.Values)
+        {
+            if (p.Size <= 0) continue;
+            if (list.Any(d => d.Number == p.Number)) continue;
+            list.Add(new DiskInfo
+            {
+                Number = p.Number,
+                Model = p.Model,
+                Serial = p.Serial,
+                BusType = p.Bus,
+                Size = p.Size
+            });
+        }
+
         list.Sort((a, b) => a.Number.CompareTo(b.Number));
 
         var identifyTasks = list
             .Where(d => d.BusType.Contains("USB", StringComparison.OrdinalIgnoreCase))
             .Select(d => Task.Run(() => (Disk: d,
-                Identify: AtaSmart.ReadIdentify(d.Number) ?? AtaSmart.ReadInquiry(d.Number))))
+                Identify: AtaSmart.ReadIdentify(d.Number, 3000) ?? AtaSmart.ReadInquiry(d.Number))))
             .ToArray();
         if (identifyTasks.Length > 0)
         {

@@ -1,5 +1,30 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.28] - 2026-11-22
+
+- **Oprava priameho ATA čítania pre USB mostíky**:
+  - poradie variantov je teraz ako v CrystalDiskInfo: najprv štandardné SAT-12
+    (`A1 08 0E`), potom SAT-16, ASM1352R, JMicron, Sunplus, Cypress a Prolific
+  - opravené flagy 12-bajtového CDB (`0E` namiesto `2E`)
+  - opravená štruktúra `SCSI_PASS_THROUGH` (`DataBufferOffset` je `ULONG_PTR`),
+    takže funguje aj záložná ne-direct cesta (predtým vracala chybu 1306)
+  - SMART sa skúsi aj vtedy, keď Windows o disku nehlási nič
+    (predtým sa v takom prípade priame ATA čítanie vôbec nespustilo)
+  - skúšanie variantov má časový rozpočet, aby sa UI nezablokovalo
+- **Disky, ktoré `Get-Disk` vynechá** (prázdny, RAW, offline), sa dopĺňajú
+  z `Win32_DiskDrive` — zobrazia sa v Sprievodcovi, v zozname diskov aj
+  v diagnostike a načíta sa im SMART.
+- **Bezpečnosť pri diagnostike**:
+  - diagnostika posiela len `INQUIRY`, `VPD 0x80` a `ATA PASS-THROUGH`;
+    rizikové `REPORT LUNS`, `VPD 0x83`, `VPD 0x00` a `READ CAPACITY` sa už neposielajú
+  - pred spustením je varovanie, že na chybnom USB mostíku môže systém spadnúť
+  - diagnostika beží mimo UI vlákna
+  - globálny zámok `Local\ZdenkoZachranMa-scsi` bráni tomu, aby dve inštancie
+    programu posielali SCSI príkazy do toho istého mostíka súčasne
+  - núdzový vypínač `ZDENKO_NO_SCSI=1` vypne všetky priame SCSI/ATA príkazy
+- Diagnostika navyše vypisuje reťazec PNP zariadení (VID/PID mostíka),
+  SCSI adresu, INQUIRY, VPD 0x80, výsledok každého CDB variantu a SCSI chybu.
+
 ## [2.27] - 2026-11-22
 
 - **Ďalšie USB mostíky pre SMART a identitu**:
