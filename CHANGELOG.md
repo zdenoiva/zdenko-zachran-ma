@@ -1,5 +1,19 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.32] - 2026-11-22
+
+- **START STOP UNIT pri „device not ready“**:
+  - diagnostika z 2.31 ukázala `Prebudenie disku: read 21` — Windows error 21
+    znamená „zariadenie nie je pripravené“
+  - ak čítanie sektora 0 zlyhá s touto chybou, program pošle štandardný SCSI
+    príkaz `START STOP UNIT` (0x1B, Start=1) a čítanie zopakuje
+  - výsledok sa zapíše do diagnostiky (`OK po START UNIT (512 B)`)
+  - bez dátového prenosu sa `DataIn` korektne nastaví na 0
+- Overené: build, self-test, UI smoke; čítanie SMART cez AXAGON po prebudení
+  funguje (WD5000AAKX, 17 atribútov, 1 531 h, 38 °C, 0 vadných sektorov).
+- Platí: len `INQUIRY`, `VPD 0x80`, `ATA PASS-THROUGH` a `START STOP UNIT`,
+  varovanie pred diagnostikou, zámok SCSI a `ZDENKO_NO_SCSI=1`.
+
 ## [2.31] - 2026-11-22
 
 - **Prebudenie disku pred čítaním SMART**:

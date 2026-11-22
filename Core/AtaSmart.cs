@@ -47,6 +47,31 @@ public static class AtaSmart
     public static string WakeUpDisk(int diskNumber)
     {
         LastWakeUp = "";
+        if (TryReadSector(diskNumber, out int error))
+        {
+            LastWakeUp = "OK (512 B)";
+            return LastWakeUp;
+        }
+
+        // ERROR_NOT_READY (21): médium je zastavené. Skúsime ho naštartovať.
+        if (error == 21 && StartUnit(diskNumber))
+        {
+            if (TryReadSector(diskNumber, out error))
+            {
+                LastWakeUp = "OK po START UNIT (512 B)";
+                return LastWakeUp;
+            }
+            LastWakeUp = $"read {error} po START UNIT";
+            return LastWakeUp;
+        }
+
+        LastWakeUp = "read " + error;
+        return LastWakeUp;
+    }
+
+    private static bool TryReadSector(int diskNumber, out int error)
+    {
+        error = 0;
         SafeFileHandle? handle = null;
         try
         {
@@ -55,27 +80,55 @@ public static class AtaSmart
                 IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
             if (handle.IsInvalid)
             {
-                LastWakeUp = "open " + Marshal.GetLastWin32Error();
-                return LastWakeUp;
+                error = Marshal.GetLastWin32Error();
+                return false;
             }
 
             var buffer = new byte[512];
-            if (!ReadFile(handle, buffer, buffer.Length, out int read, IntPtr.Zero))
+            if (!ReadFile(handle, buffer, buffer.Length, out _, IntPtr.Zero))
             {
-                LastWakeUp = "read " + Marshal.GetLastWin32Error();
-                return LastWakeUp;
+                error = Marshal.GetLastWin32Error();
+                return false;
             }
-            LastWakeUp = $"OK ({read} B)";
-            return LastWakeUp;
+            return true;
         }
-        catch (Exception ex)
+        catch
         {
-            LastWakeUp = ex.Message;
-            return LastWakeUp;
+            return false;
         }
         finally
         {
             try { handle?.Dispose(); } catch { }
+        }
+    }
+
+    /// <summary>SCSI START STOP UNIT (0x1B) so Start=1 — naštartuje zastavené médium.</summary>
+    private static bool StartUnit(int diskNumber)
+    {
+        if (!EnterScsi()) return false;
+        SafeFileHandle? handle = null;
+        try
+        {
+            handle = CreateFileW($@"\\.\PhysicalDrive{diskNumber}",
+                GenericRead | GenericWrite, FileShareRead | FileShareWrite,
+                IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+            if (handle.IsInvalid) return false;
+            if (!TryGetAddress(handle, out byte pathId, out byte targetId, out byte lun))
+                return false;
+
+            var cdb = new byte[] { 0x1B, 0x00, 0x00, 0x00, 0x01, 0x00 };
+            SendDirect(handle, pathId, targetId, lun, cdb, 6, 0, 5,
+                out byte status, out _, out int win32, out _);
+            return win32 == 0 && status == 0;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            try { handle?.Dispose(); } catch { }
+            LeaveScsi();
         }
     }
 
@@ -1016,7 +1069,7 @@ public static class AtaSmart
                 Lun = lun,
                 CdbLength = cdbLength,
                 SenseInfoLength = senseSize,
-                DataIn = 1,
+                DataIn = dataLength > 0 ? (byte)1 : (byte)0,
                 DataTransferLength = (uint)dataLength,
                 TimeOutValue = (uint)timeoutSeconds,
                 DataBuffer = data,
@@ -1077,7 +1130,7 @@ public static class AtaSmart
                 Lun = lun,
                 CdbLength = cdbLength,
                 SenseInfoLength = senseSize,
-                DataIn = 1,
+                DataIn = dataLength > 0 ? (byte)1 : (byte)0,
                 DataTransferLength = (uint)dataLength,
                 TimeOutValue = (uint)timeoutSeconds,
                 DataBufferOffset = new UIntPtr((uint)structSize),
