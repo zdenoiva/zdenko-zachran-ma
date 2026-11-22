@@ -13,6 +13,7 @@ public static class AtaSmart
     public static string LastError = "";
     public static string LastAddress = "";
     public static string LastProtocol = "";
+    public static string LastWakeUp = "";
     private const uint GenericRead = 0x80000000;
     private const uint GenericWrite = 0x40000000;
     private const uint FileShareRead = 0x00000001;
@@ -34,6 +35,50 @@ public static class AtaSmart
         byte[] inBuffer, int inBufferSize, byte[] outBuffer, int outBufferSize,
         out int bytesReturned, IntPtr overlapped);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ReadFile(SafeFileHandle file, byte[] buffer, int bytesToRead,
+        out int bytesRead, IntPtr overlapped);
+
+    /// <summary>
+    /// Prečíta sektor 0, čím sa 3,5" disk roztočí. CrystalDiskInfo to robí
+    /// pred SMART príkazmi; bez toho mostík hlási "medium not present".
+    /// </summary>
+    public static string WakeUpDisk(int diskNumber)
+    {
+        LastWakeUp = "";
+        SafeFileHandle? handle = null;
+        try
+        {
+            handle = CreateFileW($@"\\.\PhysicalDrive{diskNumber}",
+                GenericRead, FileShareRead | FileShareWrite,
+                IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+            if (handle.IsInvalid)
+            {
+                LastWakeUp = "open " + Marshal.GetLastWin32Error();
+                return LastWakeUp;
+            }
+
+            var buffer = new byte[512];
+            if (!ReadFile(handle, buffer, buffer.Length, out int read, IntPtr.Zero))
+            {
+                LastWakeUp = "read " + Marshal.GetLastWin32Error();
+                return LastWakeUp;
+            }
+            LastWakeUp = $"OK ({read} B)";
+            return LastWakeUp;
+        }
+        catch (Exception ex)
+        {
+            LastWakeUp = ex.Message;
+            return LastWakeUp;
+        }
+        finally
+        {
+            try { handle?.Dispose(); } catch { }
+        }
+    }
+
     /// <summary>Vráti 512-bajtovú SMART data page alebo null.</summary>
     public static byte[]? ReadPage(int diskNumber)
         => ReadPage(diskNumber, 15000);
@@ -42,6 +87,7 @@ public static class AtaSmart
     public static byte[]? ReadPage(int diskNumber, int budgetMs, string expectedModel = "")
     {
         if (ScsiDisabled) return null;
+        WakeUpDisk(diskNumber);
         var page = ReadPageLegacy(diskNumber);
         if (page is not null) return page;
         return ReadAtaScsi(diskNumber, 0xB0, 0xD0, 0x01, 0x01, 0x4F, 0xC2,
@@ -148,6 +194,7 @@ public static class AtaSmart
         string expectedModel = "")
     {
         if (ScsiDisabled) return null;
+        WakeUpDisk(diskNumber);
         var page = ReadAtaScsi(diskNumber, 0xEC, 0x00, 0x01, 0x00, 0x00, 0x00,
             requireSmart: false, budgetMs, expectedModel);
         if (page is null) return null;
@@ -727,6 +774,7 @@ public static class AtaSmart
         public string Address = "";
         public string Error = "";
         public string Success = "";
+        public string WakeUp = "";
         public int DirectStructSize;
         public int NonDirectStructSize;
         public byte[]? Page;
@@ -755,6 +803,8 @@ public static class AtaSmart
 
             try
             {
+            WakeUpDisk(diskNumber);
+            result.WakeUp = LastWakeUp;
             SafeFileHandle? handle = null;
             try
             {
@@ -1076,6 +1126,7 @@ public static class AtaSmart
 
             try
             {
+            lines.Add("Prebudenie disku: " + WakeUpDisk(diskNumber));
             SafeFileHandle? handle = null;
             try
             {

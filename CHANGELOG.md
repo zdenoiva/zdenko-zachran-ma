@@ -1,5 +1,20 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.31] - 2026-11-22
+
+- **Prebudenie disku pred čítaním SMART**:
+  - pred SMART/IDENTIFY sa prečíta 512 bajtov zo sektora 0, rovnako ako to
+    robí CrystalDiskInfo (`WakeUp`)
+  - 3,5" disk, ktorý je v spánku, dovtedy hlásil `medium not present`
+    (SCSI ASC 0x3A), hoci bol prítomný a zdravý
+  - toto je najpravdepodobnejšia príčina, prečo SMART nešiel z EVOLVEO boxu,
+    kým HD Tune a CrystalDiskInfo ho načítali
+  - diagnostika vypisuje výsledok prebudenia (`Prebudenie disku: OK (512 B)`)
+- Overené na AXAGONE s WD5000AAKX: SMART načítaný (17 atribútov, 1 531 h,
+  38 °C, 0 presunutých sektorov).
+- Platí naďalej: len `INQUIRY`, `VPD 0x80` a `ATA PASS-THROUGH`, varovanie pred
+  diagnostikou, zámok SCSI a `ZDENKO_NO_SCSI=1`.
+
 ## [2.30] - 2026-11-22
 
 - **ASM1352R / ASM1352-PM: ďalšie varianty ATA príkazov**

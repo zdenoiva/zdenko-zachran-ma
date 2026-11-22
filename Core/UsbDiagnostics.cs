@@ -189,7 +189,8 @@ Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | ForEach-Object {
 
     private static void AppendProbe(StringBuilder text, AtaSmart.AtaProbe probe)
     {
-        text.AppendLine($"    adresa={probe.Address} directStruct={probe.DirectStructSize} " +
+        text.AppendLine($"    adresa={probe.Address} prebudenie={probe.WakeUp} " +
+                        $"directStruct={probe.DirectStructSize} " +
                         $"nonDirectStruct={probe.NonDirectStructSize}");
         foreach (var line in probe.Lines)
         {
