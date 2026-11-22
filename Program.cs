@@ -185,6 +185,41 @@ internal static class Program
             }
         }
 
+        if (args.Any(a => a.Equals("--surfacecard", StringComparison.OrdinalIgnoreCase)))
+        {
+            ApplicationConfiguration.Initialize();
+            var log = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-surfacecard.log");
+            DiskLock? testLock = null;
+            try
+            {
+                var disk = new DiskInfo
+                {
+                    Number = 99,
+                    Model = "TEST DISK",
+                    Size = 100L * 1024 * 1024 * 1024,
+                    BusType = "SATA"
+                };
+                testLock = DiskLock.TryAcquire(99, "test", out _);
+                var job = new SurfaceJob(disk, 0, 100, testLock);
+                using var card = new SurfaceJobCard(job);
+                card.RefreshFromJob();
+                card.SetExpanded(true);
+                card.RefreshFromJob();
+                card.SetExpanded(false);
+                File.WriteAllText(log, "SURFACECARD OK");
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(log, "SURFACECARD FAIL: " + ex);
+                return 1;
+            }
+            finally
+            {
+                try { testLock?.Dispose(); } catch { }
+            }
+        }
+
         if (args.Any(a => a.Equals("--usbdiag", StringComparison.OrdinalIgnoreCase)))
         {
             var path = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-usbdiag.txt");

@@ -1,5 +1,25 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.34] - 2026-11-22
+
+- **Záložka Povrch: viac testov súčasne, každý ako vlastná karta**
+  - `Spustiť test` pridá test pre zvolený disk a rozsah; testy bežia nezávisle
+  - každá karta má vlastný priebeh, rýchlosť, ETA, mapu, štatistiky, log,
+    report a opravu vadných sektorov
+  - `Detail` rozbalí plnú mapu, metriky, legendu a protokol priamo v karte;
+    ostatné karty zostanú kompaktné a vidno ich naraz
+  - `Zastaviť` ukončí len daný test; `Odstrániť` a `Vyčistiť dokončené`
+    spravujú karty
+  - ten istý disk nemôže mať dva testy; pri dokončenom teste sa ponúkne náhrada
+  - pri druhom USB teste program upozorní, že súbežné testy na USB mostíku
+    sa delia o rýchlosť (môže byť približne polovičná)
+- Jeden 200 ms timer obnovuje všetky karty; skenovanie už nevolá UI pri každom
+  bloku. Každý test má vlastný `DiskLock`.
+- `AppState.Busy` je teraz počítadlo; automatický reset USB mostíka sa preskočí,
+  kým beží akýkoľvek test povrchu alebo vymazanie.
+- Overené: build, self-test, UI smoke. Funkčný test viacerých kariet na reálnych
+  diskoch je na používateľovi.
+
 ## [2.33] - 2026-11-22
 
 - **Nájdená a vyriešená príčina EVOLVEO / ASM1352-PM**:

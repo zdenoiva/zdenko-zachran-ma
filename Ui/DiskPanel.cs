@@ -569,7 +569,7 @@ public sealed class DiskPanel : UserControl
     private void SetBusy(bool busy, string? status = null)
     {
         _busy = busy;
-        AppState.Busy = busy;
+        AppState.DiskBusy(busy);
         _btnReload.Enabled = !busy;
         _diskCombo.Enabled = !busy;
         _rdoQuick.Enabled = !busy;

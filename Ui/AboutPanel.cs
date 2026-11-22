@@ -71,7 +71,9 @@ public sealed class AboutPanel : UserControl
             "18. Sprievodca zobrazí aj disky bez partície (nový, prázdny, RAW, offline) " +
             "a disky, ktoré Windows v zozname vynechá. V O programe sa dá uložiť " +
             "USB/SMART diagnostika s VID/PID a presnou chybou; pred spustením varuje, " +
-            "že na chybnom mostíku môže systém spadnúť."));
+            "že na chybnom mostíku môže systém spadnúť.\n" +
+            "19. Záložka Povrch umožňuje spustiť viac testov súčasne; každý má vlastnú " +
+            "kartu, mapu, log a report. Na jednom USB mostíku sa rýchlosť delí."));
 
         layout.Controls.Add(Section("Použité nástroje a licencie",
             "• Windows chkdsk — oprava NTFS/FAT32 (Microsoft)\n" +
