@@ -1,21 +1,19 @@
 {
-  "version": "2.36",
-  "tag": "v2.36",
-  "publishedAt": "2026-11-22T14:00:52Z",
+  "version": "2.38",
+  "tag": "v2.38",
+  "publishedAt": "2026-11-22T15:50:13Z",
   "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
-  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.36/ZachranaDisku.exe",
-  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.36/ZachranaDisku-Setup-2.36.exe",
-  "sha256": "522b942b2bd26874a6f86a26f23be3e8f87d9fae710cfc8d4cb61a337c873323",
-  "installerSha256": "90f7a8f5762d14b6f7678c3dd7bb1a03ff8dc0acdc8bd9405039b5fc4c3ebd38",
-  "size": 52419781,
-  "installerSize": 47377795,
+  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.38/ZachranaDisku.exe",
+  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.38/ZachranaDisku-Setup-2.38.exe",
+  "sha256": "5f6515e57623533e0d61fcf0b00e29787ee36e099a67d80a363968e7f4483083",
+  "installerSha256": "0e03fac39e85b7dd342c2c14b58a3bdda596a8c868ee0a8442197bfa96a2a18c",
+  "size": 52419792,
+  "installerSize": 47377391,
   "changelog": [
-    "**Karty testov v Povrchu**:",
-    "výška karty sa počíta z obsahu a DPI (namerané 254 px kompaktná,",
-    "mapa má 1 px rámik, aby bol celý pruh viditeľný aj pred skenovaním",
-    "**Akcie aj v hlavičke karty**: počas behu `Stop`, po skene `Report`,",
-    "**Prvý test sa otvorí v detaile** ako doteraz; pridaním druhého testu sa",
-    "`Zastaviť všetko` v toolbare a `Stop` v hlavičke karty zostávajú.",
-    "Overené: `--surfacecard` (DPI 120, výšky 254/747), self-test, UI smoke."
+    "**Windows HealthStatus už neovplyvňuje ani odporúčanie výmeny**:",
+    "zostáva len ako textová poznámka v nálezoch (napr. „stav Warning“)",
+    "skóre ani „Odporúčaná výmena disku“ sa podľa neho neriadi",
+    "dôvod: `MSFT_PhysicalDisk.HealthStatus` je verdikt Windows Storage,",
+    "`OperationalStatus` (OK/Offline) zostáva ako prevádzkový stav."
   ]
 }
