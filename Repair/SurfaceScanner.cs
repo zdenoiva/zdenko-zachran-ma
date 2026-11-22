@@ -111,6 +111,7 @@ public static class SurfaceScanner
             log?.Invoke("Priame čítanie nie je dostupné; používam bežné čítanie (môže byť ovplyvnené cache).");
 
         long done = 0;
+        int consecutiveFailures = 0;
         for (int i = 0; i < rangeBlocks; i++)
         {
             ct.ThrowIfCancellationRequested();
@@ -123,12 +124,25 @@ public static class SurfaceScanner
             {
                 reader.ReadAt(offset, buffer, length);
                 block.Ms = blockWatch.Elapsed.TotalMilliseconds;
+                consecutiveFailures = 0;
+            }
+            catch (Exception ex) when (IsDeviceError(ex))
+            {
+                throw new IOException(
+                    "Čítanie disku zlyhalo: zariadenie nie je pripravené (chyba " +
+                    (ex.HResult & 0xFFFF) + "). Odpojte a znova pripojte USB box " +
+                    "alebo skontrolujte kábel.", ex);
             }
             catch
             {
                 block.Bad = true;
                 block.Ms = blockWatch.Elapsed.TotalMilliseconds;
                 result.BadBlocks++;
+                consecutiveFailures++;
+                if (consecutiveFailures >= 32)
+                    throw new IOException(
+                        "Čítanie zlyhalo na 32 blokoch za sebou. Zariadenie alebo USB box " +
+                        "nie je pripravené — skontrolujte pripojenie a spustite znova.");
                 CheckBadSectors(reader, offset, length, sectorBuffer, badSectors, ct, onBadSector);
             }
 
@@ -158,6 +172,12 @@ public static class SurfaceScanner
             $"{result.SlowBlocks:N0} pomalých blokov · {result.Duration:hh\\:mm\\:ss}";
         log?.Invoke(result.Summary);
         return result;
+    }
+
+    private static bool IsDeviceError(Exception ex)
+    {
+        int code = ex.HResult & 0xFFFF;
+        return code is 6 or 21 or 31 or 121 or 1167;
     }
 
     private static void CheckBadSectors(DirectDiskReader reader, long offset, int length, byte[] buffer,

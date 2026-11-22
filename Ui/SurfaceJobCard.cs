@@ -7,9 +7,6 @@ namespace NtfsRescue.Ui;
 /// <summary>Karta jedného testu povrchu — kompaktná, s rozbaliteľným detailom.</summary>
 public sealed class SurfaceJobCard : Panel
 {
-    private const int CompactHeight = 196;
-    private const int ExpandedHeight = 584;
-
     private readonly SurfaceJob _job;
     private readonly TableLayoutPanel _layout = new();
     private readonly Label _title = new();
@@ -28,6 +25,7 @@ public sealed class SurfaceJobCard : Panel
     private readonly Panel _logHost = new();
     private readonly RichTextBox _log = new();
     private readonly Button _btnStop = new();
+    private readonly Button _btnHeaderStop = new();
     private readonly Button _btnDetail = new();
     private readonly Button _btnReport = new();
     private readonly Button _btnRepair = new();
@@ -53,8 +51,7 @@ public sealed class SurfaceJobCard : Panel
         BackColor = Theme.Surface;
         Padding = new Padding(12);
         Margin = new Padding(0, 0, 0, 10);
-        Height = CompactHeight;
-        MinimumSize = new Size(420, CompactHeight);
+        MinimumSize = new Size(420, 0);
 
         Build();
         SetExpanded(false);
@@ -69,7 +66,9 @@ public sealed class SurfaceJobCard : Panel
             e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
         };
 
-        _layout.Dock = DockStyle.Fill;
+        _layout.Dock = DockStyle.Top;
+        _layout.AutoSize = true;
+        _layout.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         _layout.ColumnCount = 1;
         _layout.RowCount = 7;
         _layout.BackColor = Theme.Surface;
@@ -139,7 +138,22 @@ public sealed class SurfaceJobCard : Panel
         _badge.Font = new Font("Segoe UI Semibold", 8.5f);
         _badge.Padding = new Padding(8, 3, 8, 3);
         _badge.Margin = new Padding(8, 0, 0, 0);
-        header.Controls.Add(_badge, 1, 0);
+
+        var right = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            WrapContents = false,
+            Anchor = AnchorStyles.Right,
+            BackColor = Theme.Surface,
+            Margin = new Padding(0)
+        };
+        _btnHeaderStop.Text = "Stop";
+        StyleSmallDanger(_btnHeaderStop);
+        _btnHeaderStop.Visible = false;
+        _btnHeaderStop.Click += (_, _) => StopRequested?.Invoke(this);
+        right.Controls.Add(_btnHeaderStop);
+        right.Controls.Add(_badge);
+        header.Controls.Add(right, 1, 0);
 
         header.Click += (_, _) =>
         {
@@ -413,6 +427,21 @@ public sealed class SurfaceJobCard : Panel
         return row;
     }
 
+    private static void StyleSmallDanger(Button button)
+    {
+        button.AutoSize = true;
+        button.Height = 24;
+        button.FlatStyle = FlatStyle.Flat;
+        button.BackColor = Theme.Danger;
+        button.ForeColor = Color.White;
+        button.Font = new Font("Segoe UI Semibold", 8f);
+        button.Cursor = Cursors.Hand;
+        button.Padding = new Padding(8, 0, 8, 0);
+        button.Margin = new Padding(0, 0, 8, 0);
+        button.FlatAppearance.BorderSize = 0;
+        button.FlatAppearance.MouseOverBackColor = Color.FromArgb(160, 45, 45);
+    }
+
     private static void StyleSecondary(Button button, string text)
     {
         button.Text = text;
@@ -442,17 +471,42 @@ public sealed class SurfaceJobCard : Panel
     public void SetExpanded(bool expanded)
     {
         _expanded = expanded;
-        _layout.RowStyles[2].Height = expanded ? 190 : 38;
-        _layout.RowStyles[3].Height = expanded ? 64 : 0;
-        _layout.RowStyles[4].Height = expanded ? 28 : 0;
-        _layout.RowStyles[5].Height = expanded ? 150 : 0;
         _metrics.Visible = expanded;
         _legend.Visible = expanded;
         _logHost.Visible = expanded;
         _btnDetail.Text = expanded ? "Skryť" : "Detail";
-        Height = expanded ? ExpandedHeight : CompactHeight;
-        PerformLayout();
+        RecalculateHeight();
         _map.Invalidate();
+    }
+
+    private int Scale(int pixels) => (int)Math.Round(pixels * DeviceDpi / 96.0);
+
+    private bool _recalculating;
+
+    private void RecalculateHeight()
+    {
+        if (_recalculating || _layout.RowStyles.Count < 7) return;
+        _recalculating = true;
+        try
+        {
+            _layout.RowStyles[2].Height = Scale(_expanded ? 190 : 38);
+            _layout.RowStyles[3].Height = _expanded ? Scale(64) : 0;
+            _layout.RowStyles[4].Height = _expanded ? Scale(28) : 0;
+            _layout.RowStyles[5].Height = _expanded ? Scale(150) : 0;
+            _layout.PerformLayout();
+            int height = _layout.PreferredSize.Height + Padding.Vertical;
+            if (height > 0 && Height != height) Height = height;
+        }
+        finally
+        {
+            _recalculating = false;
+        }
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        if (!_recalculating && _layout.Width > 0) RecalculateHeight();
     }
 
     public void RefreshFromJob()
@@ -508,6 +562,7 @@ public sealed class SurfaceJobCard : Panel
             : s.State == SurfaceJobState.Done ? "dokončené" : "";
 
         _btnStop.Enabled = s.State == SurfaceJobState.Running;
+        _btnHeaderStop.Visible = s.State == SurfaceJobState.Running;
         _btnReport.Enabled = Job.HasData;
         _btnRepair.Enabled = !Job.IsActive && s.BadSectors > 0 &&
                              !Job.Disk.IsCurrentSystem && _appDisk != Job.Disk.Number;

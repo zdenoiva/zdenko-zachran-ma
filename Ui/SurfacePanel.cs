@@ -11,6 +11,7 @@ public sealed class SurfacePanel : UserControl
     private readonly NumericUpDown _endBlock = new();
     private readonly Button _btnReload = new();
     private readonly Button _btnScan = new();
+    private readonly Button _btnStopAll = new();
     private readonly Button _btnClear = new();
     private readonly Label _info = new();
     private readonly Label _blocked = new();
@@ -39,6 +40,7 @@ public sealed class SurfacePanel : UserControl
         {
             foreach (var card in _cards) card.RefreshFromJob();
             _empty.Visible = _cards.Count == 0;
+            _btnStopAll.Enabled = _jobs.Any(j => j.IsActive);
         };
         _timer.Start();
     }
@@ -137,6 +139,12 @@ public sealed class SurfacePanel : UserControl
         StyleSecondary(_btnReload);
         _btnReload.Click += async (_, _) => await LoadDisksAsync();
         topButtons.Controls.Add(_btnReload);
+
+        _btnStopAll.Text = "Zastaviť všetko";
+        StyleSecondary(_btnStopAll);
+        _btnStopAll.Enabled = false;
+        _btnStopAll.Click += (_, _) => StopAll();
+        topButtons.Controls.Add(_btnStopAll);
 
         _btnClear.Text = "Vyčistiť dokončené";
         StyleSecondary(_btnClear);
@@ -452,6 +460,29 @@ public sealed class SurfacePanel : UserControl
             }
         }
 
+        // Ak box po spánku hlási "not ready", skúsime ho prebudiť/resetovať
+        // ešte pred vytvorením testu, aby sa hneď neukončil.
+        var wake = AtaSmart.WakeUpDisk(disk.Number);
+        if (wake.StartsWith("read 21", StringComparison.Ordinal))
+        {
+            if (!_jobs.Any(j => j.IsActive) && UsbBridge.AutoReset &&
+                UsbBridge.Reset(disk.Number))
+            {
+                await Task.Delay(5000);
+                wake = AtaSmart.WakeUpDisk(disk.Number);
+            }
+            if (wake.StartsWith("read 21", StringComparison.Ordinal))
+            {
+                diskLock.Dispose();
+                MessageBox.Show(
+                    "Disk alebo USB box nie je pripravený (chyba 21).\n\n" +
+                    "Odpojte a znova pripojte USB kábel a napájanie boxu, prípadne " +
+                    "reštartujte počítač. Potom spustite test znova.",
+                    "Kontrola povrchu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+        }
+
         var job = new SurfaceJob(disk, first, last, diskLock);
         var card = new SurfaceJobCard(job)
         {
@@ -528,6 +559,12 @@ public sealed class SurfacePanel : UserControl
         card.Dispose();
         _empty.Visible = _cards.Count == 0;
         ResizeCards();
+    }
+
+    private void StopAll()
+    {
+        foreach (var job in _jobs)
+            if (job.IsActive) job.Stop();
     }
 
     private void ClearCompleted()

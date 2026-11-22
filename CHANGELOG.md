@@ -1,5 +1,28 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.35] - 2026-11-22
+
+- **Oprava kariet testov v Povrchu**:
+  - karta sa už nekreslí na pevnú výšku; počíta sa z obsahu a DPI, takže
+    sú vidieť mapa, metriky, log aj všetky tlačidlá
+  - `Detail` znovu funguje aj po zmene veľkosti okna/DPI
+- **Zastavenie testu je vždy dostupné**:
+  - v hlavičke karty je tlačidlo **Stop** počas behu testu
+  - v toolbare je **Zastaviť všetko**
+  - pôvodné tlačidlá (Zastaviť, Detail, Report, Oprava, Odstrániť) sú
+    v spodnej časti karty
+- **Falošné vadné sektory pri nepripravenom boxe**:
+  - ak čítanie zlyhá s chybou 21 (zariadenie nie je pripravené), test sa
+    **okamžite ukončí** s jasnou hláškou; predtým označil každý sektor
+    bloku ako vadný (napr. 8 miliónov)
+  - po 32 chybných blokoch za sebou sa test tiež ukončí
+- Pred spustením testu sa disk prebudí; pri chybe 21 sa raz skúsi reset USB
+  mostíka. Ak PnP reset hlási „pending reboot“, treba box odpojiť a pripojiť
+  alebo reštartovať PC.
+- Overené: `--surfacetest` na zaseknutom EVOLVEO vráti `chyba 21` okamžite
+  namiesto miliónov vadných sektorov; `--surfacecard` má výšku 229/722 px
+  a tlačidlá sa zmestia; self-test a UI smoke prechádzajú.
+
 ## [2.34] - 2026-11-22
 
 - **Záložka Povrch: viac testov súčasne, každý ako vlastná karta**

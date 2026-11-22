@@ -185,6 +185,42 @@ internal static class Program
             }
         }
 
+        if (args.Any(a => a.Equals("--surfacetest", StringComparison.OrdinalIgnoreCase)))
+        {
+            var log = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-surfacetest.log");
+            try
+            {
+                var nums = args.SkipWhile(a => !a.Equals("--surfacetest", StringComparison.OrdinalIgnoreCase))
+                    .Skip(1).Take(3).ToArray();
+                if (nums.Length == 0 || !int.TryParse(nums[0], out int diskNumber))
+                {
+                    File.WriteAllText(log, "FAIL: chýba číslo disku");
+                    return 3;
+                }
+                int first = nums.Length > 1 && int.TryParse(nums[1], out int f) ? f : 0;
+                int last = nums.Length > 2 && int.TryParse(nums[2], out int l) ? l : first + 9;
+
+                var disks = DiskInfoCatalog.LoadAsync(CancellationToken.None).GetAwaiter().GetResult();
+                var disk = disks.FirstOrDefault(d => d.Number == diskNumber);
+                if (disk is null)
+                {
+                    File.WriteAllText(log, "FAIL: disk sa nenašiel");
+                    return 3;
+                }
+
+                var result = SurfaceScanner.Scan(disk, first, last, null, null,
+                    CancellationToken.None);
+                File.WriteAllText(log, "OK\n" + result.Summary +
+                                       $"\nBadSectors={result.BadSectors.Count}");
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(log, "FAIL: " + ex.Message);
+                return 1;
+            }
+        }
+
         if (args.Any(a => a.Equals("--surfacecard", StringComparison.OrdinalIgnoreCase)))
         {
             ApplicationConfiguration.Initialize();
@@ -203,10 +239,14 @@ internal static class Program
                 var job = new SurfaceJob(disk, 0, 100, testLock);
                 using var card = new SurfaceJobCard(job);
                 card.RefreshFromJob();
+                card.SetExpanded(false);
+                int compact = card.Height;
                 card.SetExpanded(true);
                 card.RefreshFromJob();
+                int expanded = card.Height;
                 card.SetExpanded(false);
-                File.WriteAllText(log, "SURFACECARD OK");
+                File.WriteAllText(log,
+                    $"SURFACECARD OK compact={compact} expanded={expanded}");
                 return 0;
             }
             catch (Exception ex)
