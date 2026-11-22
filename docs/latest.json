@@ -1,19 +1,21 @@
 {
-  "version": "2.38",
-  "tag": "v2.38",
-  "publishedAt": "2026-11-22T15:50:13Z",
+  "version": "2.39",
+  "tag": "v2.39",
+  "publishedAt": "2026-11-22T16:01:34Z",
   "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
-  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.38/ZachranaDisku.exe",
-  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.38/ZachranaDisku-Setup-2.38.exe",
-  "sha256": "5f6515e57623533e0d61fcf0b00e29787ee36e099a67d80a363968e7f4483083",
-  "installerSha256": "0e03fac39e85b7dd342c2c14b58a3bdda596a8c868ee0a8442197bfa96a2a18c",
-  "size": 52419792,
-  "installerSize": 47377391,
+  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.39/ZachranaDisku.exe",
+  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.39/ZachranaDisku-Setup-2.39.exe",
+  "sha256": "0171bc4d4a12e462bf4b34802d4eb3e61b25d8b185e0354bed95423604a34c2e",
+  "installerSha256": "b38e9401021346c15cb56b705250170b46b83dba224f146660ff64aedfa9d66a",
+  "size": 52419904,
+  "installerSize": 47376154,
   "changelog": [
-    "**Windows HealthStatus už neovplyvňuje ani odporúčanie výmeny**:",
-    "zostáva len ako textová poznámka v nálezoch (napr. „stav Warning“)",
-    "skóre ani „Odporúčaná výmena disku“ sa podľa neho neriadi",
-    "dôvod: `MSFT_PhysicalDisk.HealthStatus` je verdikt Windows Storage,",
-    "`OperationalStatus` (OK/Offline) zostáva ako prevádzkový stav."
+    "**Sprievodca: farba karty podľa horšieho z NTFS a S.M.A.R.T.**",
+    "súborový systém OK + S.M.A.R.T. Good → zelená",
+    "súborový systém OK + S.M.A.R.T. Pozor → jantárová",
+    "S.M.A.R.T. Kritický alebo odporúčaná výmena → červená",
+    "titulok zostáva „Súborový systém je čitateľný“; nad detailmi je poznámka",
+    "keď je súborový systém čitateľný, ikona je „!“ (nie „✕“), aby nevyzeralo,",
+    "Príklad: 2 presunuté sektory → karta už nie je zelená, ale červená"
   ]
 }
