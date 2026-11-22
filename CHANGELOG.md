@@ -1,5 +1,20 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.30] - 2026-11-22
+
+- **ASM1352R / ASM1352-PM: ďalšie varianty ATA príkazov**
+  - doplnené 16-bajtové ATA PASS-THROUGH s rezervovaným protokolom `0x0D`
+    (SATA port 0) a `0x0E` (SATA port 1)
+  - skúšajú sa aj varianty s `CK_COND` (`0x2E`), ktoré niektoré firmvéry vyžadujú
+  - ak mostík v `INQUIRY` hlási `ASM1352`, skúšajú sa tieto varianty prvé
+- **Diagnostika vypisuje Windows deskriptor disku** (`IOCTL_STORAGE_QUERY_PROPERTY`):
+  vendor, produkt, revíziu, sériové číslo a zbernicu tak, ako ich vidí Windows.
+  Je to bezpečné volanie bez SCSI príkazov a ukáže, či Windows vidí `WDC`
+  alebo `ASM1352-PM`.
+- Diagnostika vypisuje aj `INQUIRY` produkt mostíka a všetky skúšané adresy.
+- Platí naďalej: len `INQUIRY`, `VPD 0x80` a `ATA PASS-THROUGH`, varovanie pred
+  spustením, zámok SCSI a `ZDENKO_NO_SCSI=1`.
+
 ## [2.29] - 2026-11-22
 
 - **Opravené hľadanie správneho disku za USB mostíkom**:

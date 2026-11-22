@@ -107,6 +107,11 @@ Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | ForEach-Object {
             text.AppendLine($"Veľkosť: {Fmt.Bytes(disk.Size)}; rozhranie: {disk.Interface}; " +
                             $"médium: {disk.Media}; SN: {disk.Serial}");
 
+            var descriptor = AtaSmart.QueryStorageDescriptor(disk.Index);
+            text.AppendLine($"  Windows deskriptor: vendor='{descriptor?.Vendor}' " +
+                            $"produkt='{descriptor?.Product}' revízia='{descriptor?.Revision}' " +
+                            $"SN='{descriptor?.Serial}' zbernica={BusName(descriptor?.BusType)}");
+
             bool likelyNvme = disk.Model.Contains("NVME", StringComparison.OrdinalIgnoreCase) ||
                               disk.Pnp.Contains("VEN_NVME", StringComparison.OrdinalIgnoreCase) ||
                               disk.Pnp.StartsWith("SCSI\\DISK&VEN_NVME", StringComparison.OrdinalIgnoreCase);
@@ -166,6 +171,21 @@ Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | ForEach-Object {
 
         return text.ToString();
     }
+
+    private static string BusName(int? bus) => bus switch
+    {
+        0 => "Unknown",
+        1 => "SCSI",
+        2 => "ATAPI",
+        3 => "ATA",
+        7 => "USB",
+        8 => "RAID",
+        10 => "SAS",
+        11 => "SATA",
+        14 => "Virtual",
+        17 => "NVMe",
+        _ => bus?.ToString() ?? "?"
+    };
 
     private static void AppendProbe(StringBuilder text, AtaSmart.AtaProbe probe)
     {

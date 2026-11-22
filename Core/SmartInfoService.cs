@@ -174,7 +174,7 @@ foreach ($a in $attrs) {
         // nie sú v Get-PhysicalDisk; vtedy je priame ATA jediný zdroj údajov.
         Task<byte[]?>? ataTask = info.Nvme
             ? null
-            : Task.Run(() => AtaSmart.ReadPage(diskNumber, 5000, expectedModel), ct);
+            : Task.Run(() => AtaSmart.ReadPage(diskNumber, 8000, expectedModel), ct);
 
         var doc = await Ps.RunJsonAsync(script, ct, timeoutMs).ConfigureAwait(false);
         var obj = doc is null ? default : Ps.Objects(doc).FirstOrDefault();
@@ -223,7 +223,7 @@ foreach ($a in $attrs) {
             byte[]? page = null;
             try
             {
-                var finished = await Task.WhenAny(ataTask, Task.Delay(6000, ct))
+                var finished = await Task.WhenAny(ataTask, Task.Delay(9000, ct))
                     .ConfigureAwait(false);
                 if (finished == ataTask && ataTask.IsCompletedSuccessfully)
                     page = ataTask.Result;

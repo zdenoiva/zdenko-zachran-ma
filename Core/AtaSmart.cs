@@ -183,7 +183,7 @@ public static class AtaSmart
     /// <summary>Poradie CDB variantov pre daný disk a príkaz.</summary>
     private static List<(string Name, byte[] Cdb, byte CdbLength)> BuildVariants(
         int diskNumber, byte command, byte features, byte count,
-        byte lbaLow, byte lbaMid, byte lbaHigh, byte lun)
+        byte lbaLow, byte lbaMid, byte lbaHigh, byte lun, bool preferAsm)
     {
         var list = new List<(string Name, byte[] Cdb, byte CdbLength)>();
 
@@ -203,11 +203,11 @@ public static class AtaSmart
             list.Add((name, cdb, 12));
         }
 
-        void Add16(string name, byte flags)
+        void Add16(string name, byte opcode, byte protocol, byte flags)
         {
             var cdb = new byte[16];
-            cdb[0] = 0x85;
-            cdb[1] = 0x08;
+            cdb[0] = opcode;
+            cdb[1] = protocol;
             cdb[2] = flags;
             cdb[3] = 0x00;      // FEATURES (15:8)
             cdb[4] = features;  // FEATURES (7:0)
@@ -224,20 +224,35 @@ public static class AtaSmart
             list.Add((name, cdb, 16));
         }
 
-        // 1. Štandardné SAT-12 (rovnaké ako CrystalDiskInfo).
+        // Bridge hlási ASM1352: rezervované hodnoty protokolu vyberajú
+        // SATA port 0 (0x0D) alebo port 1 (0x0E). Skúšame 16-bajtový aj
+        // 12-bajtový variant; firmware sa v tom líši.
+        if (preferAsm)
+        {
+            Add16("ASM16-0E-0E", 0x85, (byte)(0x0E << 1), 0x0E);
+            Add16("ASM16-0D-0E", 0x85, (byte)(0x0D << 1), 0x0E);
+            Add16("ASM16-0E-2E", 0x85, (byte)(0x0E << 1), 0x2E);
+            Add16("ASM16-0D-2E", 0x85, (byte)(0x0D << 1), 0x2E);
+            Add12("ASM12-0E-0E", 0xA1, (byte)(0x0E << 1), 0x0E);
+            Add12("ASM12-0D-0E", 0xA1, (byte)(0x0D << 1), 0x0E);
+            Add12("ASM12-0E-2E", 0xA1, (byte)(0x0E << 1), 0x2E);
+            Add12("ASM12-0D-2E", 0xA1, (byte)(0x0D << 1), 0x2E);
+        }
+
+        // Štandardné SAT-12 (rovnaké ako CrystalDiskInfo).
         Add12("SAT12", 0xA1, 0x08, 0x0E);
 
-        // 2. Štandardné SAT-16 (AXAGON a väčšina USB mostíkov).
-        Add16("SAT16-2E", 0x2E);
+        // Štandardné SAT-16 (AXAGON a väčšina USB mostíkov).
+        Add16("SAT16-2E", 0x85, 0x08, 0x2E);
+        Add16("SAT16-0E", 0x85, 0x08, 0x0E);
 
-        // 3. ASM1352R (dvojdiskové USB doku/klonovací box):
-        //    protokol 0x0D = SATA port 0, 0x0E = SATA port 1.
-        byte firstAsm = lun == 1 ? (byte)0x0E : (byte)0x0D;
-        byte secondAsm = firstAsm == 0x0D ? (byte)0x0E : (byte)0x0D;
-        Add12($"ASM1352R-{firstAsm:X2}", 0xA1, (byte)(firstAsm << 1), 0x0E);
-        Add12($"ASM1352R-{secondAsm:X2}", 0xA1, (byte)(secondAsm << 1), 0x0E);
+        if (!preferAsm)
+        {
+            Add12("ASM1352R-0D", 0xA1, (byte)(0x0D << 1), 0x0E);
+            Add12("ASM1352R-0E", 0xA1, (byte)(0x0E << 1), 0x0E);
+        }
 
-        // 4. JMicron USB mostíky (napr. JMS578/JMS561) používajú vendor CDB DF 10.
+        // JMicron USB mostíky (napr. JMS578/JMS561) používajú vendor CDB DF 10.
         var jmicron = new byte[16];
         jmicron[0] = 0xDF;
         jmicron[1] = 0x10;
@@ -253,7 +268,7 @@ public static class AtaSmart
         jmicron[11] = command;
         list.Add(("JMicron", jmicron, 12));
 
-        // 5. Sunplus USB mostíky.
+        // Sunplus USB mostíky.
         var sunplus = new byte[16];
         sunplus[0] = 0xF8;
         sunplus[1] = 0x00;
@@ -269,7 +284,7 @@ public static class AtaSmart
         sunplus[11] = command;
         list.Add(("Sunplus", sunplus, 12));
 
-        // 6. Cypress USB mostíky.
+        // Cypress USB mostíky.
         var cypress = new byte[16];
         cypress[0] = 0x24;
         cypress[1] = 0x24;
@@ -284,7 +299,7 @@ public static class AtaSmart
         cypress[12] = command;
         list.Add(("Cypress", cypress, 16));
 
-        // 7. Prolific USB mostíky.
+        // Prolific USB mostíky.
         var prolific = new byte[16];
         prolific[0] = 0xD8;
         prolific[1] = 0x15;
@@ -303,9 +318,6 @@ public static class AtaSmart
         prolific[14] = 0xA0;
         prolific[15] = command;
         list.Add(("Prolific", prolific, 16));
-
-        // 8. Štandardné SAT-16 so správnymi flagmi podľa SAT-4.
-        Add16("SAT16-0E", 0x0E);
 
         // Ak už v tejto relácii niektorý variant uspel, skúsime ho ako prvý.
         if (Preferred.TryGetValue(diskNumber, out string? name))
@@ -333,8 +345,9 @@ public static class AtaSmart
     /// zodpovedá modelu disku (napr. WDC namiesto ASM1352-PM).
     /// </summary>
     private static List<ScsiAddress> DiscoverAddresses(int diskNumber,
-        SafeFileHandle handle, string expectedModel)
+        SafeFileHandle handle, string expectedModel, out string bridgeProduct)
     {
+        bridgeProduct = "";
         var list = new List<ScsiAddress>();
         void Add(byte path, byte target, byte lun)
         {
@@ -345,6 +358,11 @@ public static class AtaSmart
         byte pathId = 0, targetId = 0, lun = 0;
         if (TryGetAddress(handle, out pathId, out targetId, out lun))
             Add(pathId, targetId, lun);
+
+        var inquiry = SendDirect(handle, pathId, targetId, lun,
+            new byte[] { 0x12, 0, 0, 0, 96, 0 }, 6, 96, 2,
+            out _, out _, out _, out _);
+        bridgeProduct = InquiryProduct(inquiry);
 
         for (byte l = 0; l < 4; l++) Add(pathId, targetId, l);
         for (byte t = 0; t < 2; t++) Add(pathId, t, 0);
@@ -384,9 +402,7 @@ public static class AtaSmart
             out _, out _, out _, out _);
         if (data is null || data.Length < 36) return 0;
 
-        var vendor = Encoding.ASCII.GetString(data, 8, 8).Trim();
-        var product = Encoding.ASCII.GetString(data, 16, 16).Trim();
-        var text = NormalizeModel(vendor + product);
+        var text = NormalizeModel(InquiryProduct(data));
         if (text.Length == 0) return 0;
         if (text == expected) return 100;
         if (expected.Contains(text, StringComparison.Ordinal) ||
@@ -394,6 +410,14 @@ public static class AtaSmart
         if (text.Length >= 8 && expected.Length >= 8 &&
             text[..8] == expected[..8]) return 60;
         return 0;
+    }
+
+    private static string InquiryProduct(byte[]? data)
+    {
+        if (data is null || data.Length < 32) return "";
+        var vendor = Encoding.ASCII.GetString(data, 8, 8).Trim();
+        var product = Encoding.ASCII.GetString(data, 16, 16).Trim();
+        return (vendor + " " + product).Trim();
     }
 
     private static string NormalizeModel(string value)
@@ -439,8 +463,10 @@ public static class AtaSmart
                 return null;
             }
 
-            var addresses = DiscoverAddresses(diskNumber, handle, expectedModel);
+            var addresses = DiscoverAddresses(diskNumber, handle, expectedModel,
+                out string bridgeProduct);
             if (addresses.Count == 0) addresses.Add(new ScsiAddress(0, 0, 0));
+            bool preferAsm = bridgeProduct.Contains("ASM1352", StringComparison.OrdinalIgnoreCase);
 
             var budget = System.Diagnostics.Stopwatch.StartNew();
             const int timeoutSeconds = 2;
@@ -451,7 +477,7 @@ public static class AtaSmart
                 LastAddress = $"{address.PathId}/{address.TargetId}/{address.Lun}";
 
                 var variants = BuildVariants(diskNumber, command, features, count,
-                    lbaLow, lbaMid, lbaHigh, address.Lun);
+                    lbaLow, lbaMid, lbaHigh, address.Lun, preferAsm);
 
                 foreach (bool direct in new[] { true, false })
                 {
@@ -502,6 +528,50 @@ public static class AtaSmart
         catch (Exception ex)
         {
             LastError = "scsi " + ex.Message;
+            return null;
+        }
+        finally
+        {
+            try { handle?.Dispose(); } catch { }
+        }
+    }
+
+    public sealed record StorageDescriptor(string Vendor, string Product, string Revision,
+        string Serial, int BusType);
+
+    /// <summary>Čo o disku hlási Windows cez IOCTL_STORAGE_QUERY_PROPERTY (bezpečné, bez SCSI).</summary>
+    public static StorageDescriptor? QueryStorageDescriptor(int diskNumber)
+    {
+        SafeFileHandle? handle = null;
+        try
+        {
+            handle = CreateFileW($@"\\.\PhysicalDrive{diskNumber}",
+                GenericRead, FileShareRead | FileShareWrite,
+                IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+            if (handle.IsInvalid) return null;
+
+            var query = new byte[12];
+            var output = new byte[1024];
+            if (!DeviceIoControl(handle, 0x002D1400, query, query.Length,
+                    output, output.Length, out int returned, IntPtr.Zero) || returned < 36)
+                return null;
+
+            string At(int offset)
+            {
+                if (offset <= 0 || offset >= output.Length) return "";
+                int end = Array.IndexOf(output, (byte)0, offset);
+                if (end < 0) end = output.Length;
+                return Encoding.ASCII.GetString(output, offset, end - offset).Trim();
+            }
+
+            return new StorageDescriptor(At(BitConverter.ToInt32(output, 12)),
+                At(BitConverter.ToInt32(output, 16)),
+                At(BitConverter.ToInt32(output, 20)),
+                At(BitConverter.ToInt32(output, 24)),
+                BitConverter.ToInt32(output, 28));
+        }
+        catch
+        {
             return null;
         }
         finally
@@ -697,8 +767,10 @@ public static class AtaSmart
                     return result;
                 }
 
-                var addresses = DiscoverAddresses(diskNumber, handle, expectedModel);
+                var addresses = DiscoverAddresses(diskNumber, handle, expectedModel,
+                    out string bridgeProduct);
                 if (addresses.Count == 0) addresses.Add(new ScsiAddress(0, 0, 0));
+                bool preferAsm = bridgeProduct.Contains("ASM1352", StringComparison.OrdinalIgnoreCase);
                 // Ak sa podarilo nájsť adresu podľa modelu, testujeme len ju.
                 if (NormalizeModel(expectedModel).Length > 0)
                     addresses = addresses.Take(1).ToList();
@@ -716,7 +788,7 @@ public static class AtaSmart
                 foreach (var address in addresses)
                 {
                     var variants = BuildVariants(diskNumber, command, features, count,
-                        lbaLow, lbaMid, lbaHigh, address.Lun);
+                        lbaLow, lbaMid, lbaHigh, address.Lun, preferAsm);
                     string addressText = $"{address.PathId}/{address.TargetId}/{address.Lun}";
 
                     foreach (bool direct in new[] { true, false })
@@ -1016,9 +1088,11 @@ public static class AtaSmart
                     return lines;
                 }
 
-                var addresses = DiscoverAddresses(diskNumber, handle, expectedModel)
+                var addresses = DiscoverAddresses(diskNumber, handle, expectedModel,
+                        out string bridgeProduct)
                     .Take(4).ToList();
                 if (addresses.Count == 0) addresses.Add(new ScsiAddress(0, 0, 0));
+                lines.Add($"Mostík (INQUIRY): '{bridgeProduct}'");
                 lines.Add("SCSI adresy: " + string.Join(", ",
                     addresses.Select(a => $"{a.PathId}/{a.TargetId}/{a.Lun}")));
 
@@ -1186,5 +1260,6 @@ public static class AtaSmart
         buffer[offset + 3] = (byte)(value >> 24);
     }
 }
+
 
 
