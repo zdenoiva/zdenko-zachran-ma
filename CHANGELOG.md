@@ -1,5 +1,18 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.39] - 2026-11-22
+
+- **Sprievodca: farba karty podľa horšieho z NTFS a S.M.A.R.T.**
+  - súborový systém OK + S.M.A.R.T. Good → zelená
+  - súborový systém OK + S.M.A.R.T. Pozor → jantárová
+  - S.M.A.R.T. Kritický alebo odporúčaná výmena → červená
+  - titulok zostáva „Súborový systém je čitateľný“; nad detailmi je poznámka
+    „S.M.A.R.T. Pozor — pozri vpravo.“ alebo „S.M.A.R.T. Odporúčaná výmena…“
+  - keď je súborový systém čitateľný, ikona je „!“ (nie „✕“), aby nevyzeralo,
+    že je poškodený NTFS
+- Príklad: 2 presunuté sektory → karta už nie je zelená, ale červená
+  s upozornením na výmenu.
+
 ## [2.38] - 2026-11-22
 
 - **Windows HealthStatus už neovplyvňuje ani odporúčanie výmeny**:

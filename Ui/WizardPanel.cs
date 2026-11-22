@@ -165,9 +165,41 @@ public sealed class WizardPanel : UserControl
         }
 
         FitTextWidth();
+
+        // Farba karty = horší z dvoch pohľadov: súborový systém a S.M.A.R.T.
+        var severity = report.Severity;
+        bool smartWorse = false;
+        if (report.SmartAvailable && report.Smart is { } smart)
+        {
+            if (smart.ReplacementRecommended || smart.Rating == SmartRating.Bad)
+            {
+                if (severity < DiagnosisSeverity.Critical)
+                {
+                    severity = DiagnosisSeverity.Critical;
+                    smartWorse = true;
+                }
+            }
+            else if (smart.HasAlert || smart.Rating == SmartRating.Caution)
+            {
+                if (severity < DiagnosisSeverity.Warning)
+                {
+                    severity = DiagnosisSeverity.Warning;
+                    smartWorse = true;
+                }
+            }
+        }
+
+        string smartNote = "";
+        if (smartWorse)
+        {
+            smartNote = report.Smart?.ReplacementRecommended == true
+                ? "S.M.A.R.T. Odporúčaná výmena — pozri vpravo.\n"
+                : "S.M.A.R.T. Pozor — pozri vpravo.\n";
+        }
+
         _lblPartition.Text = report.Partition.Display + "  ·  " + report.Partition.Model;
         _lblTitle.Text = report.Title;
-        _lblDetails.Text = report.Details;
+        _lblDetails.Text = smartNote + report.Details;
         _lblSmart.Visible = true;
         _lblSmart.Text = string.IsNullOrWhiteSpace(report.SmartText)
             ? "S.M.A.R.T: nedostupné"
@@ -197,7 +229,7 @@ public sealed class WizardPanel : UserControl
         Color accent;
         Color soft;
         string icon;
-        switch (report.Severity)
+        switch (severity)
         {
             case DiagnosisSeverity.Ok:
                 accent = Theme.Success;
@@ -220,6 +252,10 @@ public sealed class WizardPanel : UserControl
                 icon = "i";
                 break;
         }
+
+        // Súborový systém je čitateľný, ale disk má S.M.A.R.T. problém:
+        // ponecháme výstražnú ikonu namiesto krížika, farba karty je už horšia.
+        if (smartWorse && report.Severity == DiagnosisSeverity.Ok) icon = "!";
 
         _lblIcon.Text = icon;
         _lblIcon.ForeColor = accent;
