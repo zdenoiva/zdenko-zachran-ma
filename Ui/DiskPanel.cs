@@ -27,6 +27,7 @@ public sealed class DiskPanel : UserControl
     private List<DiskInfo> _disks = new();
     private DiskInfo? _selected;
     private CancellationTokenSource? _cts;
+    private DiskLock? _diskLock;
     private bool _busy;
     private bool _loaded;
 
@@ -500,6 +501,19 @@ public sealed class DiskPanel : UserControl
             "Rozumiem, že všetky dáta na tomto disku budú nevratne zničené.");
         if (confirm.ShowDialog(FindForm()) != DialogResult.OK) return;
 
+        var diskLock = DiskLock.TryAcquire(d.Number, "vymazanie disku", out string owner);
+        if (!diskLock.Acquired)
+        {
+            MessageBox.Show(
+                $"Disk {d.Number} sa práve používa v inom okne programu" +
+                (string.IsNullOrWhiteSpace(owner) ? "" : $" ({owner})") +
+                ".\n\nPočkajte na dokončenie alebo zavrite druhé okno.",
+                "Vymazanie disku", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        _diskLock = diskLock;
+        AppendLog($"Disk {d.Number} je zamknutý pre vymazanie.");
+
         SetBusy(true, "Pripravujem vymazanie…");
         _log.Clear();
         try
@@ -544,6 +558,8 @@ public sealed class DiskPanel : UserControl
         {
             try { _cts?.Dispose(); } catch { }
             _cts = null;
+            _diskLock?.Dispose();
+            _diskLock = null;
             SetBusy(false);
         }
 

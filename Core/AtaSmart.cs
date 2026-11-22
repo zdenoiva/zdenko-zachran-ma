@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.Win32.SafeHandles;
 
 namespace NtfsRescue.Core;
@@ -11,6 +12,7 @@ public static class AtaSmart
 {
     public static string LastError = "";
     public static string LastAddress = "";
+    public static string LastProtocol = "";
     private const uint GenericRead = 0x80000000;
     private const uint GenericWrite = 0x40000000;
     private const uint FileShareRead = 0x00000001;
@@ -169,6 +171,60 @@ public static class AtaSmart
             buffer = Marshal.AllocHGlobal(structSize + senseSize);
 
             var variants = new List<(byte[] Cdb, byte CdbLength)>();
+
+            // ASM1352R (dvojdiskové USB doku): ATA PASS-THROUGH(12) s protokolom
+            // 0x0D pre SATA port 0 a 0x0E pre SATA port 1. Skúšame port podľa LUN.
+            byte firstAsm = lun == 1 ? (byte)0x0E : (byte)0x0D;
+            byte secondAsm = firstAsm == 0x0D ? (byte)0x0E : (byte)0x0D;
+            foreach (byte protocol in new[] { firstAsm, secondAsm })
+            {
+                var cdb = new byte[16];
+                cdb[0] = 0xA1;
+                cdb[1] = (byte)(protocol << 1);
+                cdb[2] = 0x2E;
+                cdb[3] = features;
+                cdb[4] = count;
+                cdb[5] = lbaLow;
+                cdb[6] = lbaMid;
+                cdb[7] = lbaHigh;
+                cdb[8] = 0xA0;
+                cdb[9] = command;
+                variants.Add((cdb, 12));
+            }
+
+            // JMicron USB mostíky (napr. JMS578/JMS561) používajú vendor CDB DF 10.
+            var jmicron = new byte[16];
+            jmicron[0] = 0xDF;
+            jmicron[1] = 0x10;
+            jmicron[2] = 0x00;
+            jmicron[3] = 0x02;
+            jmicron[4] = 0x00;
+            jmicron[5] = command == 0xB0 ? (byte)0xD0 : (byte)0x00;
+            jmicron[6] = 0x01;
+            jmicron[7] = command == 0xB0 ? (byte)0x01 : (byte)0x00;
+            jmicron[8] = command == 0xB0 ? (byte)0x4F : (byte)0x00;
+            jmicron[9] = command == 0xB0 ? (byte)0xC2 : (byte)0x00;
+            jmicron[10] = 0xA0;
+            jmicron[11] = command;
+            variants.Add((jmicron, 12));
+
+            // Sunplus USB mostíky.
+            var sunplus = new byte[16];
+            sunplus[0] = 0xF8;
+            sunplus[1] = 0x00;
+            sunplus[2] = 0x22;
+            sunplus[3] = 0x10;
+            sunplus[4] = 0x01;
+            sunplus[5] = command == 0xB0 ? (byte)0xD0 : (byte)0x00;
+            sunplus[6] = 0x01;
+            sunplus[7] = 0x00;
+            sunplus[8] = command == 0xB0 ? (byte)0x4F : (byte)0x00;
+            sunplus[9] = command == 0xB0 ? (byte)0xC2 : (byte)0x00;
+            sunplus[10] = 0xA0;
+            sunplus[11] = command;
+            variants.Add((sunplus, 12));
+
+            // Štandardné SAT (AHCI, väčšina USB mostíkov).
             foreach (byte direction in new byte[] { 0x2E, 0x3E })
             {
                 var cdb16 = new byte[16];
@@ -246,7 +302,10 @@ public static class AtaSmart
                     var attributes = ParseAttributes(page);
                     if (attributes.Count >= 3 &&
                         attributes.Any(a => a.Id is 5 or 9 or 194 or 197 or 198))
+                    {
+                        LastProtocol = $"{variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
                         return page;
+                    }
                     errors.Add($"empty {variant.Cdb[0]:X2}/{variant.Cdb[2]:X2} " +
                                $"status={back.ScsiStatus} attrs={attributes.Count}");
                 }
@@ -254,7 +313,10 @@ public static class AtaSmart
                 {
                     var (serial, model) = ParseIdentify(page);
                     if (serial.Length > 0 || model.Length > 0)
+                    {
+                        LastProtocol = $"{variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
                         return page;
+                    }
                     errors.Add($"empty-identify {variant.Cdb[0]:X2}/{variant.Cdb[2]:X2} " +
                                $"status={back.ScsiStatus}");
                 }
@@ -266,6 +328,119 @@ public static class AtaSmart
         catch (Exception ex)
         {
             LastError = "scsi " + ex.Message;
+            return null;
+        }
+        finally
+        {
+            if (buffer != IntPtr.Zero) Marshal.FreeHGlobal(buffer);
+            if (data != IntPtr.Zero) Marshal.FreeHGlobal(data);
+            try { handle?.Dispose(); } catch { }
+        }
+    }
+
+    public static (string Serial, string Model)? ReadInquiry(int diskNumber)
+    {
+        var standard = ReadScsiInquiry(diskNumber, evpd: false, page: 0x00, 255);
+        var vpd = ReadScsiInquiry(diskNumber, evpd: true, page: 0x80, 255);
+
+        string serial = "";
+        string model = "";
+        if (vpd is { Length: > 4 })
+        {
+            int length = (vpd[2] << 8) | vpd[3];
+            int count = Math.Min(length, vpd.Length - 4);
+            serial = Encoding.ASCII.GetString(vpd, 4, count).Trim('\0', ' ');
+        }
+
+        if (standard is { Length: >= 36 })
+        {
+            var vendor = Encoding.ASCII.GetString(standard, 8, 8).Trim();
+            var product = Encoding.ASCII.GetString(standard, 16, 16).Trim();
+            model = (vendor + " " + product).Trim();
+        }
+
+        if (serial.Length == 0 && model.Length == 0) return null;
+        return (serial, model);
+    }
+
+    private static byte[]? ReadScsiInquiry(int diskNumber, bool evpd, byte page, int dataLength)
+    {
+        SafeFileHandle? handle = null;
+        IntPtr buffer = IntPtr.Zero;
+        IntPtr data = IntPtr.Zero;
+        try
+        {
+            handle = CreateFileW($@"\\.\PhysicalDrive{diskNumber}",
+                GenericRead | GenericWrite, FileShareRead | FileShareWrite,
+                IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+            if (handle.IsInvalid) return null;
+
+            byte pathId = 0, targetId = 0, lun = 0;
+            IntPtr address = Marshal.AllocHGlobal(8);
+            try
+            {
+                for (int i = 0; i < 8; i++) Marshal.WriteByte(address, i, 0);
+                if (DeviceIoControlPtr(handle, IoctlScsiGetAddress,
+                        IntPtr.Zero, 0, address, 8, out int addressReturned, IntPtr.Zero) &&
+                    addressReturned >= 8)
+                {
+                    pathId = Marshal.ReadByte(address, 5);
+                    targetId = Marshal.ReadByte(address, 6);
+                    lun = Marshal.ReadByte(address, 7);
+                }
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(address);
+            }
+
+            int structSize = Marshal.SizeOf<ScsiPassThroughDirect>();
+            const int senseSize = 32;
+            data = Marshal.AllocHGlobal(dataLength);
+            buffer = Marshal.AllocHGlobal(structSize + senseSize);
+
+            var cdb = new byte[16];
+            cdb[0] = 0x12; // INQUIRY
+            cdb[1] = evpd ? (byte)0x01 : (byte)0x00;
+            cdb[2] = page;
+            cdb[3] = 0;
+            cdb[4] = (byte)dataLength;
+
+            var packet = new ScsiPassThroughDirect
+            {
+                Length = (ushort)structSize,
+                PathId = pathId,
+                TargetId = targetId,
+                Lun = lun,
+                CdbLength = 6,
+                SenseInfoLength = senseSize,
+                DataIn = 1,
+                DataTransferLength = (uint)dataLength,
+                TimeOutValue = 5,
+                DataBuffer = data,
+                SenseInfoOffset = (uint)structSize,
+                Cdb = cdb
+            };
+
+            for (int i = 0; i < structSize + senseSize; i++) Marshal.WriteByte(buffer, i, 0);
+            Marshal.StructureToPtr(packet, buffer, false);
+
+            if (!DeviceIoControlPtr(handle, IoctlScsiPassThroughDirect,
+                    buffer, structSize + senseSize, buffer, structSize + senseSize,
+                    out int returned, IntPtr.Zero) || returned <= 0)
+                return null;
+
+            var back = Marshal.PtrToStructure<ScsiPassThroughDirect>(buffer);
+            var sense = new byte[senseSize];
+            Marshal.Copy(buffer + structSize, sense, 0, senseSize);
+            if (back.ScsiStatus != 0 && !AtaRecoveredOk(sense)) return null;
+
+            var result = new byte[dataLength];
+            Marshal.Copy(data, result, 0, dataLength);
+            return result;
+        }
+        catch
+        {
             return null;
         }
         finally

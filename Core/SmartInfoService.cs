@@ -244,7 +244,8 @@ foreach ($a in $attrs) {
                     if (direct.Count > 0)
                     {
                         Log.Info($"S.M.A.R.T. disk {diskNumber}: ATA OK, " +
-                                 $"{direct.Count} atribútov, adresa {AtaSmart.LastAddress}");
+                                 $"{direct.Count} atribútov, adresa {AtaSmart.LastAddress}, " +
+                                 $"protokol {AtaSmart.LastProtocol}");
                         info.Attributes = direct;
                         info.ReallocatedSectors = 0;
                         info.PendingSectors = 0;

@@ -1,5 +1,23 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.26] - 2026-11-22
+
+- **Univerzálnejšie S.M.A.R.T. a identifikácia pre USB doku/klonovací box**:
+  - ASM1352R: ATA PASS-THROUGH(12) s protokolom `0x0D` pre SATA port 0
+    a `0x0E` pre SATA port 1 (výber podľa LUN)
+  - JMicron: vendor CDB `DF 10 …` pre SMART aj IDENTIFY
+  - Sunplus: vendor CDB `F8 00 22 10 …`
+  - štandardné SATA PASS-THROUGH ostáva ako záloha
+  - identita sa skúša cez ATA IDENTIFY a potom cez SCSI INQUIRY (VPD 0x80)
+  - do logu sa zapisuje, ktorý protokol uspel (`85/08`, `A1/1A`, …)
+- **Zámok disku počas kontroly povrchu, opravy povrchu a vymazania**:
+  - medziprocesový zámok `%LOCALAPPDATA%\ZdenkoZachranMa\locks\disk-N.lock`
+  - druhá inštancia programu dostane jasnú hlášku, že disk sa práve používa
+  - zámok sa uvoľní po dokončení, zrušení alebo chybe; po páde procesu
+    ho uvoľní Windows
+- Overené: AXAGON ADSA-DC (dva disky, SMART + reálne SN), zámok medzi
+  dvoma spustenými procesmi (druhý `acquired=False`).
+
 ## [2.25] - 2026-11-21
 
 - **Každý SMART problém je teraz vysvetlený vľavo v Sprievodcovi** — čo znamená,

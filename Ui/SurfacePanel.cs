@@ -40,6 +40,7 @@ public sealed class SurfacePanel : UserControl
     private List<DiskInfo> _disks = new();
     private DiskInfo? _selected;
     private CancellationTokenSource? _cts;
+    private DiskLock? _diskLock;
     private int[] _cells = Array.Empty<int>();
     private double[] _cellMs = Array.Empty<double>();
     private readonly HashSet<long> _badSectors = new();
@@ -686,6 +687,19 @@ public sealed class SurfacePanel : UserControl
             return;
         }
 
+        var diskLock = DiskLock.TryAcquire(disk.Number, "kontrola povrchu", out string owner);
+        if (!diskLock.Acquired)
+        {
+            MessageBox.Show(
+                $"Disk {disk.Number} sa práve používa v inom okne programu" +
+                (string.IsNullOrWhiteSpace(owner) ? "" : $" ({owner})") +
+                ".\n\nPočkajte na dokončenie alebo zavrite druhé okno.",
+                "Kontrola povrchu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        _diskLock = diskLock;
+        AppendLog($"Disk {disk.Number} je zamknutý pre kontrolu povrchu.");
+
         if (first == 0)
         {
             lock (_mapLock)
@@ -746,6 +760,8 @@ public sealed class SurfacePanel : UserControl
         {
             try { _cts?.Dispose(); } catch { }
             _cts = null;
+            _diskLock?.Dispose();
+            _diskLock = null;
             SetBusy(false);
         }
     }
@@ -826,6 +842,19 @@ public sealed class SurfacePanel : UserControl
             "Rozumiem, že oprava zapisuje do disku a môže poškodiť dáta.");
         if (confirm.ShowDialog(FindForm()) != DialogResult.OK) return;
 
+        var diskLock = DiskLock.TryAcquire(disk.Number, "oprava povrchu", out string owner);
+        if (!diskLock.Acquired)
+        {
+            MessageBox.Show(
+                $"Disk {disk.Number} sa práve používa v inom okne programu" +
+                (string.IsNullOrWhiteSpace(owner) ? "" : $" ({owner})") +
+                ".\n\nPočkajte na dokončenie alebo zavrite druhé okno.",
+                "Oprava vadných sektorov", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        _diskLock = diskLock;
+        AppendLog($"Disk {disk.Number} je zamknutý pre opravu povrchu.");
+
         SetBusy(true, "Opravujem vadné sektory…");
         _log.Clear();
         try
@@ -863,6 +892,8 @@ public sealed class SurfacePanel : UserControl
         {
             try { _cts?.Dispose(); } catch { }
             _cts = null;
+            _diskLock?.Dispose();
+            _diskLock = null;
             SetBusy(false);
         }
     }

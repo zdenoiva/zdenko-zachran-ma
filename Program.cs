@@ -184,6 +184,24 @@ internal static class Program
             }
         }
 
+        if (args.Any(a => a.Equals("--locktest", StringComparison.OrdinalIgnoreCase)))
+        {
+            var logPath = Path.Combine(Path.GetTempPath(),
+                $"ZdenkoZachranMa-locktest-{Environment.ProcessId}.log");
+            var numberArg = args.SkipWhile(a => !a.Equals("--locktest", StringComparison.OrdinalIgnoreCase))
+                .Skip(1).FirstOrDefault();
+            if (!int.TryParse(numberArg, out int diskNumber))
+            {
+                File.WriteAllText(logPath, "LOCKTEST FAIL: chýba číslo disku");
+                return 3;
+            }
+            using var diskLock = DiskLock.TryAcquire(diskNumber, "test", out string owner);
+            File.WriteAllText(logPath,
+                $"acquired={diskLock.Acquired} owner={owner} pid={Environment.ProcessId}");
+            if (diskLock.Acquired) Thread.Sleep(8000);
+            return diskLock.Acquired ? 0 : 2;
+        }
+
         if (args.Any(a => a.Equals("--atasmart", StringComparison.OrdinalIgnoreCase)))
         {
             var logPath = Path.Combine(Path.GetTempPath(), "ZdenkoZachranMa-atasmart.log");
@@ -207,10 +225,12 @@ internal static class Program
                 }
 
                 var attributes = AtaSmart.ParseAttributes(page);
+                var inquiry = AtaSmart.ReadInquiry(diskNumber);
                 var lines = new List<string>
                 {
                     $"ATASMART disk {diskNumber}: page={page.Length} attributes={attributes.Count} " +
-                    $"address={AtaSmart.LastAddress}"
+                    $"address={AtaSmart.LastAddress} protocol={AtaSmart.LastProtocol}",
+                    $"INQUIRY serial={inquiry?.Serial} model={inquiry?.Model}"
                 };
                 foreach (var a in attributes)
                     lines.Add($"{a.Id}:{a.Name} value={a.Value} worst={a.Worst} raw={a.Raw}");

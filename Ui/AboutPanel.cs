@@ -63,7 +63,11 @@ public sealed class AboutPanel : UserControl
             "upozorní na výmenu a ponúkne plnú kontrolu povrchu.\n" +
             "15. Každý nález v S.M.A.R.T. (CRC, sektory, teplota, vek, opotrebenie, " +
             "náhradné bloky) je vľavo vysvetlený vrátane rizika a odporúčaného riešenia.\n" +
-            "16. Sprievodca zobrazí aj disky bez partície (nový, prázdny, RAW, offline). " +
+            "16. USB-SATA mostíky: SMART a identita sa čítajú cez štandardné SAT, " +
+            "ASM1352R, JMicron a Sunplus; identita aj cez SCSI INQUIRY.\n" +
+            "17. Kontrola povrchu, oprava povrchu a vymazanie disku sú zamknuté proti " +
+            "druhej inštancii programu.\n" +
+            "18. Sprievodca zobrazí aj disky bez partície (nový, prázdny, RAW, offline). " +
             "Pre prázdny disk ponúkne kontrolu povrchu, vytvorenie partície a záchranu " +
             "súborov; nepoužiteľné kroky sú šedé."));
 

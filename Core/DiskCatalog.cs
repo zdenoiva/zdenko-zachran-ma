@@ -52,7 +52,8 @@ public static class DiskCatalog
         if (usbCandidates.Count > 0)
         {
             var identifyTasks = usbCandidates
-                .Select(kv => Task.Run(() => (Number: kv.Key, Identify: AtaSmart.ReadIdentify(kv.Key))))
+                .Select(kv => Task.Run(() => (Number: kv.Key,
+                    Identify: AtaSmart.ReadIdentify(kv.Key) ?? AtaSmart.ReadInquiry(kv.Key))))
                 .ToArray();
             await Task.WhenAny(Task.WhenAll(identifyTasks), Task.Delay(3500)).ConfigureAwait(false);
 
