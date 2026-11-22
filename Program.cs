@@ -135,7 +135,8 @@ internal static class Program
                     File.WriteAllText(logPath, "SMART FAIL: partícia sa nenašla");
                     return 3;
                 }
-                var smart = SmartInfoService.Query(p.DiskNumber, CancellationToken.None);
+                var smart = SmartInfoService.Query(p.DiskNumber, CancellationToken.None,
+                    expectedModel: p.Model);
                 File.WriteAllText(logPath,
                     $"SMART {letter}: {smart.DisplayText}\n" +
                     $"Available={smart.Available} Nvme={smart.Nvme} Alert={smart.HasAlert} " +

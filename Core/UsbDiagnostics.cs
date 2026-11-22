@@ -111,7 +111,7 @@ Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | ForEach-Object {
                               disk.Pnp.Contains("VEN_NVME", StringComparison.OrdinalIgnoreCase) ||
                               disk.Pnp.StartsWith("SCSI\\DISK&VEN_NVME", StringComparison.OrdinalIgnoreCase);
 
-            foreach (var line in AtaSmart.ScsiInfo(disk.Index))
+            foreach (var line in AtaSmart.ScsiInfo(disk.Index, disk.Model))
                 text.AppendLine("  " + line);
 
             if (likelyNvme)
@@ -121,7 +121,7 @@ Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | ForEach-Object {
                 continue;
             }
 
-            var identify = AtaSmart.Probe(disk.Index, smart: false);
+            var identify = AtaSmart.Probe(disk.Index, smart: false, expectedModel: disk.Model);
             text.AppendLine($"  ATA IDENTIFY: {(identify.Success.Length > 0 ? "ÁNO — " + identify.Success : "NIE")}" +
                             (identify.Error.Length > 0 ? $" ({identify.Error})" : ""));
             AppendProbe(text, identify);
@@ -131,7 +131,7 @@ Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | ForEach-Object {
                 text.AppendLine($"    model='{model}' serial='{serial}'");
             }
 
-            var smart = AtaSmart.Probe(disk.Index, smart: true);
+            var smart = AtaSmart.Probe(disk.Index, smart: true, expectedModel: disk.Model);
             text.AppendLine($"  S.M.A.R.T.: {(smart.Success.Length > 0 ? "ÁNO — " + smart.Success : "NIE")}" +
                             (smart.Error.Length > 0 ? $" ({smart.Error})" : ""));
             AppendProbe(text, smart);
@@ -173,8 +173,8 @@ Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | ForEach-Object {
                         $"nonDirectStruct={probe.NonDirectStructSize}");
         foreach (var line in probe.Lines)
         {
-            text.AppendLine($"    {line.Name,-13} {line.Transport,-10} {line.Cdb,-36} " +
-                            $"{line.Ms,5} ms  {line.Outcome}" +
+            text.AppendLine($"    {line.Name,-13} {line.Address,-7} {line.Transport,-10} " +
+                            $"{line.Cdb,-36} {line.Ms,5} ms  {line.Outcome}" +
                             (line.Asc.Length > 0 ? $"  {line.Asc}" : "") +
                             (line.Sense.Length > 0 && line.Outcome != "OK" ? $"  sense={line.Sense}" : ""));
         }

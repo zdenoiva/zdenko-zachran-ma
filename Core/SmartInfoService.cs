@@ -71,11 +71,12 @@ public sealed class SmartInfo
 
 public static class SmartInfoService
 {
-    public static SmartInfo Query(int diskNumber, CancellationToken ct, int timeoutMs = 8000)
+    public static SmartInfo Query(int diskNumber, CancellationToken ct, int timeoutMs = 8000,
+        string expectedModel = "")
     {
         try
         {
-            return QueryAsync(diskNumber, ct, timeoutMs).GetAwaiter().GetResult();
+            return QueryAsync(diskNumber, ct, timeoutMs, expectedModel).GetAwaiter().GetResult();
         }
         catch
         {
@@ -84,7 +85,7 @@ public static class SmartInfoService
     }
 
     public static async Task<SmartInfo> QueryAsync(int diskNumber, CancellationToken ct,
-        int timeoutMs = 8000)
+        int timeoutMs = 8000, string expectedModel = "")
     {
         if (diskNumber < 0)
             return new SmartInfo { DisplayText = "S.M.A.R.T: nedostupné (obraz)" };
@@ -173,7 +174,7 @@ foreach ($a in $attrs) {
         // nie sú v Get-PhysicalDisk; vtedy je priame ATA jediný zdroj údajov.
         Task<byte[]?>? ataTask = info.Nvme
             ? null
-            : Task.Run(() => AtaSmart.ReadPage(diskNumber, 5000), ct);
+            : Task.Run(() => AtaSmart.ReadPage(diskNumber, 5000, expectedModel), ct);
 
         var doc = await Ps.RunJsonAsync(script, ct, timeoutMs).ConfigureAwait(false);
         var obj = doc is null ? default : Ps.Objects(doc).FirstOrDefault();

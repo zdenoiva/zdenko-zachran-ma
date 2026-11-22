@@ -1,5 +1,22 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.29] - 2026-11-22
+
+- **Opravené hľadanie správneho disku za USB mostíkom**:
+  - diagnostika z 2.28 ukázala, že na adrese `0/0/0` odpovedá samotný mostík
+    (`ASMT ASM1352-PM`), kým Windows má na tom istom `PhysicalDrive` disk
+    `WDC WD5000AAKX`
+  - program teraz vyskúša okolité adresy (LUN 0–3, Target 0–1, Path 0–1),
+    cez `INQUIRY` ich porovná s modelom disku a vyberie tú, ktorá naozaj
+    patrí disku
+  - nájdená adresa sa zapamätá, takže ďalšie čítanie SMART je rýchle
+  - pri diagnostike sa testuje len nájdená adresa, aby sa do mostíka
+    neposielali zbytočné príkazy
+- Diagnostika naďalej posiela len `INQUIRY`, `VPD 0x80` a `ATA PASS-THROUGH`;
+  pred spustením varuje a beží mimo UI vlákna.
+- Zámok SCSI, `ZDENKO_NO_SCSI=1` a zámok disku pre kontrolu/opravu/vymazanie
+  zostávajú z 2.26–2.28.
+
 ## [2.28] - 2026-11-22
 
 - **Oprava priameho ATA čítania pre USB mostíky**:

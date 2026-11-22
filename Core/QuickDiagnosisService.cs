@@ -75,7 +75,7 @@ public static class QuickDiagnosisService
         {
             var smartWatch = System.Diagnostics.Stopwatch.StartNew();
             var smart = SmartInfoService.Query(partition.DiskNumber, ct,
-                partition.IsWholeDisk ? 3000 : 8000);
+                partition.IsWholeDisk ? 3000 : 8000, partition.Model);
             Log.Info($"Diagnostika {partition.Display}: S.M.A.R.T. {smartWatch.ElapsedMilliseconds} ms");
             bool virtualDisk = partition.BusType.Contains("Virtual", StringComparison.OrdinalIgnoreCase) ||
                                smart.Interface.Contains("Virtual", StringComparison.OrdinalIgnoreCase);

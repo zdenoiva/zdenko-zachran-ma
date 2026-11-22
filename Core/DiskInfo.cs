@@ -110,7 +110,8 @@ public static class DiskInfoCatalog
         var identifyTasks = list
             .Where(d => d.BusType.Contains("USB", StringComparison.OrdinalIgnoreCase))
             .Select(d => Task.Run(() => (Disk: d,
-                Identify: AtaSmart.ReadIdentify(d.Number, 3000) ?? AtaSmart.ReadInquiry(d.Number))))
+                Identify: AtaSmart.ReadIdentify(d.Number, 3000, d.Model) ??
+                          AtaSmart.ReadInquiry(d.Number))))
             .ToArray();
         if (identifyTasks.Length > 0)
         {

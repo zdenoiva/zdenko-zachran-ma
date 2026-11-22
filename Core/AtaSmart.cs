@@ -39,13 +39,13 @@ public static class AtaSmart
         => ReadPage(diskNumber, 15000);
 
     /// <summary>Vráti SMART page, pričom skúšanie variantov zastaví po budgetMs.</summary>
-    public static byte[]? ReadPage(int diskNumber, int budgetMs)
+    public static byte[]? ReadPage(int diskNumber, int budgetMs, string expectedModel = "")
     {
         if (ScsiDisabled) return null;
         var page = ReadPageLegacy(diskNumber);
         if (page is not null) return page;
         return ReadAtaScsi(diskNumber, 0xB0, 0xD0, 0x01, 0x01, 0x4F, 0xC2,
-            requireSmart: true, budgetMs);
+            requireSmart: true, budgetMs, expectedModel);
     }
 
     private static byte[]? ReadPageLegacy(int diskNumber)
@@ -144,11 +144,12 @@ public static class AtaSmart
         => ReadAtaScsi(diskNumber, 0xB0, 0xD0, 0x01, 0x01, 0x4F, 0xC2, requireSmart: true);
 
     /// <summary>Prečíta ATA IDENTIFY DEVICE (skutočný model a sériové číslo).</summary>
-    public static (string Serial, string Model)? ReadIdentify(int diskNumber, int budgetMs = 6000)
+    public static (string Serial, string Model)? ReadIdentify(int diskNumber, int budgetMs = 6000,
+        string expectedModel = "")
     {
         if (ScsiDisabled) return null;
         var page = ReadAtaScsi(diskNumber, 0xEC, 0x00, 0x01, 0x00, 0x00, 0x00,
-            requireSmart: false, budgetMs);
+            requireSmart: false, budgetMs, expectedModel);
         if (page is null) return null;
         var (serial, model) = ParseIdentify(page);
         if (serial.Length == 0 && model.Length == 0) return null;
@@ -321,9 +322,86 @@ public static class AtaSmart
         return list;
     }
 
+    public sealed record ScsiAddress(byte PathId, byte TargetId, byte Lun);
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, ScsiAddress>
+        PreferredAddress = new();
+
+    /// <summary>
+    /// USB mostík môže mať disk na inom LUN, než aký hlási SCSI_GET_ADDRESS.
+    /// Preto vyskúšame okolité adresy a podľa INQUIRY vyberieme tú, ktorá
+    /// zodpovedá modelu disku (napr. WDC namiesto ASM1352-PM).
+    /// </summary>
+    private static List<ScsiAddress> DiscoverAddresses(int diskNumber,
+        SafeFileHandle handle, string expectedModel)
+    {
+        var list = new List<ScsiAddress>();
+        void Add(byte path, byte target, byte lun)
+        {
+            var address = new ScsiAddress(path, target, lun);
+            if (!list.Contains(address)) list.Add(address);
+        }
+
+        byte pathId = 0, targetId = 0, lun = 0;
+        if (TryGetAddress(handle, out pathId, out targetId, out lun))
+            Add(pathId, targetId, lun);
+
+        for (byte l = 0; l < 4; l++) Add(pathId, targetId, l);
+        for (byte t = 0; t < 2; t++) Add(pathId, t, 0);
+        for (byte p = 0; p < 2; p++) Add(p, 0, 0);
+
+        var expected = NormalizeModel(expectedModel);
+        if (expected.Length > 0)
+        {
+            var scan = System.Diagnostics.Stopwatch.StartNew();
+            int Score(ScsiAddress address)
+            {
+                if (scan.ElapsedMilliseconds > 3000) return 0;
+                return InquiryScore(handle, address, expected);
+            }
+
+            var scored = list
+                .Select(a => (Address: a, Score: Score(a)))
+                .OrderByDescending(x => x.Score)
+                .ToList();
+            if (scored.Count > 0 && scored[0].Score > 0)
+                list = scored.Select(x => x.Address).ToList();
+        }
+
+        if (PreferredAddress.TryGetValue(diskNumber, out var preferred))
+        {
+            int index = list.IndexOf(preferred);
+            if (index > 0) { list.RemoveAt(index); list.Insert(0, preferred); }
+            else if (index < 0) list.Insert(0, preferred);
+        }
+        return list;
+    }
+
+    private static int InquiryScore(SafeFileHandle handle, ScsiAddress address, string expected)
+    {
+        var data = SendDirect(handle, address.PathId, address.TargetId, address.Lun,
+            new byte[] { 0x12, 0, 0, 0, 96, 0 }, 6, 96, 2,
+            out _, out _, out _, out _);
+        if (data is null || data.Length < 36) return 0;
+
+        var vendor = Encoding.ASCII.GetString(data, 8, 8).Trim();
+        var product = Encoding.ASCII.GetString(data, 16, 16).Trim();
+        var text = NormalizeModel(vendor + product);
+        if (text.Length == 0) return 0;
+        if (text == expected) return 100;
+        if (expected.Contains(text, StringComparison.Ordinal) ||
+            text.Contains(expected, StringComparison.Ordinal)) return 80;
+        if (text.Length >= 8 && expected.Length >= 8 &&
+            text[..8] == expected[..8]) return 60;
+        return 0;
+    }
+
+    private static string NormalizeModel(string value)
+        => new(value.Where(char.IsLetterOrDigit).ToArray());
+
     private static byte[]? ReadAtaScsi(int diskNumber, byte command, byte features,
         byte count, byte lbaLow, byte lbaMid, byte lbaHigh, bool requireSmart,
-        int budgetMs = 15000)
+        int budgetMs = 15000, string expectedModel = "")
     {
         lock (Gate(diskNumber))
         {
@@ -335,7 +413,7 @@ public static class AtaSmart
             try
             {
                 return ReadAtaScsiCore(diskNumber, command, features, count,
-                    lbaLow, lbaMid, lbaHigh, requireSmart, budgetMs);
+                    lbaLow, lbaMid, lbaHigh, requireSmart, budgetMs, expectedModel);
             }
             finally
             {
@@ -345,11 +423,10 @@ public static class AtaSmart
     }
 
     private static byte[]? ReadAtaScsiCore(int diskNumber, byte command, byte features,
-        byte count, byte lbaLow, byte lbaMid, byte lbaHigh, bool requireSmart, int budgetMs)
+        byte count, byte lbaLow, byte lbaMid, byte lbaHigh, bool requireSmart, int budgetMs,
+        string expectedModel)
     {
         SafeFileHandle? handle = null;
-        IntPtr buffer = IntPtr.Zero;
-        IntPtr data = IntPtr.Zero;
         var errors = new List<string>();
         try
         {
@@ -362,190 +439,61 @@ public static class AtaSmart
                 return null;
             }
 
-            byte pathId = 0;
-            byte targetId = 0;
-            byte lun = 0;
-            IntPtr address = Marshal.AllocHGlobal(8);
-            try
-            {
-                for (int i = 0; i < 8; i++) Marshal.WriteByte(address, i, 0);
-                if (DeviceIoControlPtr(handle, IoctlScsiGetAddress,
-                        IntPtr.Zero, 0, address, 8, out int addressReturned, IntPtr.Zero) &&
-                    addressReturned >= 8)
-                {
-                    pathId = Marshal.ReadByte(address, 5);
-                    targetId = Marshal.ReadByte(address, 6);
-                    lun = Marshal.ReadByte(address, 7);
-                }
-            }
-            finally
-            {
-                Marshal.FreeHGlobal(address);
-            }
-            LastAddress = $"{pathId}/{targetId}/{lun}";
+            var addresses = DiscoverAddresses(diskNumber, handle, expectedModel);
+            if (addresses.Count == 0) addresses.Add(new ScsiAddress(0, 0, 0));
 
-            int structSize = Marshal.SizeOf<ScsiPassThroughDirect>();
-            int senseSize = 32;
-            data = Marshal.AllocHGlobal(PageSize);
-            buffer = Marshal.AllocHGlobal(structSize + senseSize);
-
-            var variants = BuildVariants(diskNumber, command, features, count,
-                lbaLow, lbaMid, lbaHigh, lun);
             var budget = System.Diagnostics.Stopwatch.StartNew();
+            const int timeoutSeconds = 2;
 
-            foreach (var variant in variants)
+            foreach (var address in addresses)
             {
-                if (budget.ElapsedMilliseconds > budgetMs)
-                {
-                    errors.Add("timeout");
-                    break;
-                }
-                var packet = new ScsiPassThroughDirect
-                {
-                    Length = (ushort)structSize,
-                    PathId = pathId,
-                    TargetId = targetId,
-                    Lun = lun,
-                    CdbLength = variant.CdbLength,
-                    SenseInfoLength = (byte)senseSize,
-                    DataIn = 1,
-                    DataTransferLength = PageSize,
-                    TimeOutValue = 2,
-                    DataBuffer = data,
-                    SenseInfoOffset = (uint)structSize,
-                    Cdb = variant.Cdb
-                };
+                if (budget.ElapsedMilliseconds > budgetMs) { errors.Add("timeout"); break; }
+                LastAddress = $"{address.PathId}/{address.TargetId}/{address.Lun}";
 
-                for (int i = 0; i < structSize + senseSize; i++) Marshal.WriteByte(buffer, i, 0);
-                Marshal.StructureToPtr(packet, buffer, false);
+                var variants = BuildVariants(diskNumber, command, features, count,
+                    lbaLow, lbaMid, lbaHigh, address.Lun);
 
-                if (!DeviceIoControlPtr(handle, IoctlScsiPassThroughDirect,
-                        buffer, structSize + senseSize, buffer, structSize + senseSize,
-                        out int returned, IntPtr.Zero) || returned <= 0)
+                foreach (bool direct in new[] { true, false })
                 {
-                    errors.Add($"ioctl {variant.Cdb[0]:X2}/{variant.Cdb[2]:X2} " +
-                               $"{Marshal.GetLastWin32Error()}/{returned}");
-                    continue;
-                }
-
-                var back = Marshal.PtrToStructure<ScsiPassThroughDirect>(buffer);
-                var sense = new byte[senseSize];
-                Marshal.Copy(buffer + structSize, sense, 0, senseSize);
-                if (back.ScsiStatus != 0 && !AtaRecoveredOk(sense))
-                {
-                    errors.Add($"scsi {variant.Cdb[0]:X2}/{variant.Cdb[2]:X2} " +
-                               $"status={back.ScsiStatus} sense={Convert.ToHexString(sense)}");
-                    continue;
-                }
-
-                var page = new byte[PageSize];
-                Marshal.Copy(data, page, 0, PageSize);
-
-                if (requireSmart)
-                {
-                    var attributes = ParseAttributes(page);
-                    if (attributes.Count >= 3 &&
-                        attributes.Any(a => a.Id is 5 or 9 or 194 or 197 or 198))
+                    foreach (var variant in variants)
                     {
+                        if (budget.ElapsedMilliseconds > budgetMs)
+                        {
+                            errors.Add("timeout");
+                            break;
+                        }
+
+                        byte status = 0;
+                        string sense = "";
+                        int win32 = 0;
+                        int returned = 0;
+                        var page = direct
+                            ? SendDirect(handle, address.PathId, address.TargetId, address.Lun,
+                                variant.Cdb, variant.CdbLength, PageSize, timeoutSeconds,
+                                out status, out sense, out win32, out returned)
+                            : SendNonDirect(handle, address.PathId, address.TargetId, address.Lun,
+                                variant.Cdb, variant.CdbLength, PageSize, timeoutSeconds,
+                                out status, out sense, out win32, out returned);
+
+                        if (page is null)
+                        {
+                            errors.Add($"{address.Lun}:{(direct ? "D" : "N")}:{variant.Name} " +
+                                       $"ioctl={win32} status={status}");
+                            continue;
+                        }
+                        if (!IsUsable(page, requireSmart))
+                        {
+                            errors.Add($"{address.Lun}:{(direct ? "D" : "N")}:{variant.Name} prázdne");
+                            continue;
+                        }
+
                         Preferred[diskNumber] = variant.Name;
-                        LastProtocol = $"{variant.Name} {variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
+                        PreferredAddress[diskNumber] = address;
+                        LastProtocol = (direct ? "" : "ND ") +
+                                       $"{variant.Name} {variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
                         return page;
                     }
-                    errors.Add($"empty {variant.Cdb[0]:X2}/{variant.Cdb[2]:X2} " +
-                               $"status={back.ScsiStatus} attrs={attributes.Count}");
                 }
-                else
-                {
-                    var (serial, model) = ParseIdentify(page);
-                    if (serial.Length > 0 || model.Length > 0)
-                    {
-                        Preferred[diskNumber] = variant.Name;
-                        LastProtocol = $"{variant.Name} {variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
-                        return page;
-                    }
-                    errors.Add($"empty-identify {variant.Cdb[0]:X2}/{variant.Cdb[2]:X2} " +
-                               $"status={back.ScsiStatus}");
-                }
-            }
-
-            // Niektoré USB mostíky podporujú len klasické SCSI_PASS_THROUGH (nie direct).
-            int ndStruct = Marshal.SizeOf<ScsiPassThrough>();
-            int ndSize = ndStruct + PageSize + senseSize;
-            IntPtr ndBuffer = Marshal.AllocHGlobal(ndSize);
-            try
-            {
-                foreach (var variant in variants)
-                {
-                    if (budget.ElapsedMilliseconds > budgetMs)
-                    {
-                        errors.Add("timeout");
-                        break;
-                    }
-                    for (int i = 0; i < ndSize; i++) Marshal.WriteByte(ndBuffer, i, 0);
-                    var packet = new ScsiPassThrough
-                    {
-                        Length = (ushort)ndStruct,
-                        PathId = pathId,
-                        TargetId = targetId,
-                        Lun = lun,
-                        CdbLength = variant.CdbLength,
-                        SenseInfoLength = (byte)senseSize,
-                        DataIn = 1,
-                        DataTransferLength = PageSize,
-                        TimeOutValue = 2,
-                        DataBufferOffset = new UIntPtr((uint)ndStruct),
-                        SenseInfoOffset = (uint)(ndStruct + PageSize),
-                        Cdb = variant.Cdb
-                    };
-                    Marshal.StructureToPtr(packet, ndBuffer, false);
-
-                    if (!DeviceIoControlPtr(handle, IoctlScsiPassThrough,
-                            ndBuffer, ndSize, ndBuffer, ndSize,
-                            out int returned, IntPtr.Zero) || returned <= 0)
-                    {
-                        errors.Add($"nd ioctl {variant.Cdb[0]:X2}/{variant.Cdb[1]:X2} " +
-                                   $"{Marshal.GetLastWin32Error()}/{returned}");
-                        continue;
-                    }
-
-                    var back = Marshal.PtrToStructure<ScsiPassThrough>(ndBuffer);
-                    var sense = new byte[senseSize];
-                    Marshal.Copy(ndBuffer + ndStruct + PageSize, sense, 0, senseSize);
-                    if (back.ScsiStatus != 0 && !AtaRecoveredOk(sense))
-                    {
-                        errors.Add($"nd scsi {variant.Cdb[0]:X2}/{variant.Cdb[1]:X2} " +
-                                   $"status={back.ScsiStatus} sense={Convert.ToHexString(sense)}");
-                        continue;
-                    }
-
-                    var page = new byte[PageSize];
-                    Marshal.Copy(ndBuffer + ndStruct, page, 0, PageSize);
-                    if (requireSmart)
-                    {
-                        var attributes = ParseAttributes(page);
-                        if (attributes.Count >= 3 &&
-                            attributes.Any(a => a.Id is 5 or 9 or 194 or 197 or 198))
-                        {
-                            Preferred[diskNumber] = variant.Name;
-                            LastProtocol = $"ND {variant.Name} {variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
-                            return page;
-                        }
-                    }
-                    else
-                    {
-                        var (serial, model) = ParseIdentify(page);
-                        if (serial.Length > 0 || model.Length > 0)
-                        {
-                            Preferred[diskNumber] = variant.Name;
-                            LastProtocol = $"ND {variant.Name} {variant.Cdb[0]:X2}/{variant.Cdb[1]:X2}";
-                            return page;
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                Marshal.FreeHGlobal(ndBuffer);
             }
 
             LastError = string.Join("; ", errors);
@@ -558,8 +506,6 @@ public static class AtaSmart
         }
         finally
         {
-            if (buffer != IntPtr.Zero) Marshal.FreeHGlobal(buffer);
-            if (data != IntPtr.Zero) Marshal.FreeHGlobal(data);
             try { handle?.Dispose(); } catch { }
         }
     }
@@ -694,6 +640,7 @@ public static class AtaSmart
     {
         public string Name = "";
         public string Transport = "";
+        public string Address = "";
         public string Cdb = "";
         public bool IoctlOk;
         public int Win32Error;
@@ -717,7 +664,8 @@ public static class AtaSmart
     }
 
     /// <summary>Vyskúša všetky varianty ATA PASS-THROUGH a vráti presný výsledok.</summary>
-    public static AtaProbe Probe(int diskNumber, bool smart, int timeoutSeconds = 2)
+    public static AtaProbe Probe(int diskNumber, bool smart, int timeoutSeconds = 2,
+        string expectedModel = "")
     {
         var result = new AtaProbe
         {
@@ -749,12 +697,13 @@ public static class AtaSmart
                     return result;
                 }
 
-                if (!TryGetAddress(handle, out byte pathId, out byte targetId, out byte lun))
-                {
-                    result.Error = "SCSI_GET_ADDRESS zlyhalo";
-                    return result;
-                }
-                result.Address = $"{pathId}/{targetId}/{lun}";
+                var addresses = DiscoverAddresses(diskNumber, handle, expectedModel);
+                if (addresses.Count == 0) addresses.Add(new ScsiAddress(0, 0, 0));
+                // Ak sa podarilo nájsť adresu podľa modelu, testujeme len ju.
+                if (NormalizeModel(expectedModel).Length > 0)
+                    addresses = addresses.Take(1).ToList();
+                result.Address = string.Join(", ",
+                    addresses.Select(a => $"{a.PathId}/{a.TargetId}/{a.Lun}"));
 
                 byte command = smart ? (byte)0xB0 : (byte)0xEC;
                 byte features = smart ? (byte)0xD0 : (byte)0x00;
@@ -763,61 +712,70 @@ public static class AtaSmart
                 byte lbaMid = smart ? (byte)0x4F : (byte)0x00;
                 byte lbaHigh = smart ? (byte)0xC2 : (byte)0x00;
 
-                var variants = BuildVariants(diskNumber, command, features, count,
-                    lbaLow, lbaMid, lbaHigh, lun);
-
                 var total = System.Diagnostics.Stopwatch.StartNew();
-                foreach (bool direct in new[] { true, false })
+                foreach (var address in addresses)
                 {
-                    foreach (var variant in variants)
-                    {
-                        if (total.ElapsedMilliseconds > 20000)
-                        {
-                            result.Error = "časový limit 20 s";
-                            return result;
-                        }
-                        var line = new AtaProbeLine
-                        {
-                            Name = variant.Name,
-                            Transport = direct ? "direct" : "non-direct",
-                            Cdb = Convert.ToHexString(variant.Cdb, 0, variant.CdbLength)
-                        };
-                        var watch = System.Diagnostics.Stopwatch.StartNew();
-                        var page = direct
-                            ? SendDirect(handle, pathId, targetId, lun, variant.Cdb,
-                                variant.CdbLength, PageSize, timeoutSeconds, out line.ScsiStatus,
-                                out string senseHex, out line.Win32Error, out line.Returned)
-                            : SendNonDirect(handle, pathId, targetId, lun, variant.Cdb,
-                                variant.CdbLength, PageSize, timeoutSeconds, out line.ScsiStatus,
-                                out senseHex, out line.Win32Error, out line.Returned);
-                        watch.Stop();
-                        line.Ms = watch.ElapsedMilliseconds;
-                        line.Sense = senseHex;
-                        line.IoctlOk = line.Win32Error == 0 && line.Returned > 0;
-                        line.Asc = DecodeSense(senseHex);
+                    var variants = BuildVariants(diskNumber, command, features, count,
+                        lbaLow, lbaMid, lbaHigh, address.Lun);
+                    string addressText = $"{address.PathId}/{address.TargetId}/{address.Lun}";
 
-                        if (line.IoctlOk && line.ScsiStatus == 0)
+                    foreach (bool direct in new[] { true, false })
+                    {
+                        foreach (var variant in variants)
                         {
-                            if (page is not null && IsUsable(page, smart))
+                            if (total.ElapsedMilliseconds > 20000)
                             {
-                                line.Outcome = "OK";
-                                result.Success = $"{line.Transport} {variant.Name}";
-                                result.Page = page;
-                                Preferred[diskNumber] = variant.Name;
-                                result.Lines.Add(line);
+                                result.Error = "časový limit 20 s";
                                 return result;
                             }
-                            line.Outcome = "prázdne dáta";
+                            var line = new AtaProbeLine
+                            {
+                                Name = variant.Name,
+                                Transport = direct ? "direct" : "non-direct",
+                                Address = addressText,
+                                Cdb = Convert.ToHexString(variant.Cdb, 0, variant.CdbLength)
+                            };
+                            var watch = System.Diagnostics.Stopwatch.StartNew();
+                            string senseHex = "";
+                            var page = direct
+                                ? SendDirect(handle, address.PathId, address.TargetId, address.Lun,
+                                    variant.Cdb, variant.CdbLength, PageSize, timeoutSeconds,
+                                    out line.ScsiStatus, out senseHex,
+                                    out line.Win32Error, out line.Returned)
+                                : SendNonDirect(handle, address.PathId, address.TargetId, address.Lun,
+                                    variant.Cdb, variant.CdbLength, PageSize, timeoutSeconds,
+                                    out line.ScsiStatus, out senseHex,
+                                    out line.Win32Error, out line.Returned);
+                            watch.Stop();
+                            line.Ms = watch.ElapsedMilliseconds;
+                            line.Sense = senseHex;
+                            line.IoctlOk = line.Win32Error == 0 && line.Returned > 0;
+                            line.Asc = DecodeSense(senseHex);
+
+                            if (line.IoctlOk && line.ScsiStatus == 0)
+                            {
+                                if (page is not null && IsUsable(page, smart))
+                                {
+                                    line.Outcome = "OK";
+                                    result.Success = $"{line.Transport} {variant.Name} na {addressText}";
+                                    result.Page = page;
+                                    Preferred[diskNumber] = variant.Name;
+                                    PreferredAddress[diskNumber] = address;
+                                    result.Lines.Add(line);
+                                    return result;
+                                }
+                                line.Outcome = "prázdne dáta";
+                            }
+                            else if (line.IoctlOk)
+                            {
+                                line.Outcome = "SCSI status " + line.ScsiStatus;
+                            }
+                            else
+                            {
+                                line.Outcome = "IOCTL " + line.Win32Error;
+                            }
+                            result.Lines.Add(line);
                         }
-                        else if (line.IoctlOk)
-                        {
-                            line.Outcome = "SCSI status " + line.ScsiStatus;
-                        }
-                        else
-                        {
-                            line.Outcome = "IOCTL " + line.Win32Error;
-                        }
-                        result.Lines.Add(line);
                     }
                 }
             }
@@ -1031,7 +989,7 @@ public static class AtaSmart
     }
 
     /// <summary>SCSI INQUIRY, VPD 0x80 a SCSI adresa pre diagnostiku.</summary>
-    public static List<string> ScsiInfo(int diskNumber)
+    public static List<string> ScsiInfo(int diskNumber, string expectedModel = "")
     {
         var lines = new List<string>();
         lock (Gate(diskNumber))
@@ -1057,21 +1015,25 @@ public static class AtaSmart
                     lines.Add("open zlyhalo: " + Marshal.GetLastWin32Error());
                     return lines;
                 }
-                if (!TryGetAddress(handle, out byte pathId, out byte targetId, out byte lun))
-                {
-                    lines.Add("SCSI_GET_ADDRESS zlyhalo");
-                    return lines;
-                }
-                lines.Add($"SCSI adresa: {pathId}/{targetId}/{lun}");
+
+                var addresses = DiscoverAddresses(diskNumber, handle, expectedModel)
+                    .Take(4).ToList();
+                if (addresses.Count == 0) addresses.Add(new ScsiAddress(0, 0, 0));
+                lines.Add("SCSI adresy: " + string.Join(", ",
+                    addresses.Select(a => $"{a.PathId}/{a.TargetId}/{a.Lun}")));
 
                 // Zámerne posielame len INQUIRY a VPD 0x80. Tieto príkazy sú
                 // overené na viacerých mostíkoch; REPORT LUNS, VPD 0x83 ani
                 // READ CAPACITY neposielame — na niektorých firmvéroch USB
                 // mostíkov dokážu zraziť systémový ovládač.
-                SendCdb(handle, pathId, targetId, lun, new byte[] { 0x12, 0, 0, 0, 96, 0 },
-                    96, lines, "INQUIRY");
-                SendCdb(handle, pathId, targetId, lun, new byte[] { 0x12, 1, 0x80, 0, 255, 0 },
-                    255, lines, "VPD 0x80");
+                foreach (var address in addresses)
+                {
+                    lines.Add($"-- adresa {address.PathId}/{address.TargetId}/{address.Lun} --");
+                    SendCdb(handle, address.PathId, address.TargetId, address.Lun,
+                        new byte[] { 0x12, 0, 0, 0, 96, 0 }, 96, lines, "INQUIRY");
+                    SendCdb(handle, address.PathId, address.TargetId, address.Lun,
+                        new byte[] { 0x12, 1, 0x80, 0, 255, 0 }, 255, lines, "VPD 0x80");
+                }
             }
             catch (Exception ex)
             {
@@ -1224,4 +1186,5 @@ public static class AtaSmart
         buffer[offset + 3] = (byte)(value >> 24);
     }
 }
+
 
