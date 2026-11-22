@@ -1,21 +1,21 @@
 {
-  "version": "2.31",
-  "tag": "v2.31",
-  "publishedAt": "2026-11-22T10:59:55Z",
+  "version": "2.32",
+  "tag": "v2.32",
+  "publishedAt": "2026-11-22T11:21:27Z",
   "pageUrl": "https://zdenoiva.github.io/zdenko-zachran-ma/",
-  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.31/ZachranaDisku.exe",
-  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.31/ZachranaDisku-Setup-2.31.exe",
-  "sha256": "7e51d7eb5395551e75a168927b41e5f04b1305375c02a253bdc6a53ee1c84a58",
-  "installerSha256": "6d60060767efbbc669616e9508041fd5f95b70fcd0689b4bdab97bafab97626e",
-  "size": 52408773,
-  "installerSize": 47363968,
+  "portableUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.32/ZachranaDisku.exe",
+  "installerUrl": "https://github.com/zdenoiva/zdenko-zachran-ma/releases/download/v2.32/ZachranaDisku-Setup-2.32.exe",
+  "sha256": "682355e25aba05138716b83d4f083b334429ed624e8de36b4ee687997f041997",
+  "installerSha256": "a216343da4dca7d945de60f05ca705e313040b224643d145a8508f0467e94962",
+  "size": 52409041,
+  "installerSize": 47365082,
   "changelog": [
-    "**Prebudenie disku pred čítaním SMART**:",
-    "pred SMART/IDENTIFY sa prečíta 512 bajtov zo sektora 0, rovnako ako to",
-    "3,5\" disk, ktorý je v spánku, dovtedy hlásil `medium not present`",
-    "toto je najpravdepodobnejšia príčina, prečo SMART nešiel z EVOLVEO boxu,",
-    "diagnostika vypisuje výsledok prebudenia (`Prebudenie disku: OK (512 B)`)",
-    "Overené na AXAGONE s WD5000AAKX: SMART načítaný (17 atribútov, 1 531 h,",
-    "Platí naďalej: len `INQUIRY`, `VPD 0x80` a `ATA PASS-THROUGH`, varovanie pred"
+    "**START STOP UNIT pri „device not ready“**:",
+    "diagnostika z 2.31 ukázala `Prebudenie disku: read 21` — Windows error 21",
+    "ak čítanie sektora 0 zlyhá s touto chybou, program pošle štandardný SCSI",
+    "výsledok sa zapíše do diagnostiky (`OK po START UNIT (512 B)`)",
+    "bez dátového prenosu sa `DataIn` korektne nastaví na 0",
+    "Overené: build, self-test, UI smoke; čítanie SMART cez AXAGON po prebudení",
+    "Platí: len `INQUIRY`, `VPD 0x80`, `ATA PASS-THROUGH` a `START STOP UNIT`,"
   ]
 }
