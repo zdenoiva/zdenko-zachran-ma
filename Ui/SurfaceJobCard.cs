@@ -26,6 +26,8 @@ public sealed class SurfaceJobCard : Panel
     private readonly RichTextBox _log = new();
     private readonly Button _btnStop = new();
     private readonly Button _btnHeaderStop = new();
+    private readonly Button _btnHeaderReport = new();
+    private readonly Button _btnHeaderRepair = new();
     private readonly Button _btnDetail = new();
     private readonly Button _btnReport = new();
     private readonly Button _btnRepair = new();
@@ -79,7 +81,7 @@ public sealed class SurfaceJobCard : Panel
         _layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
         _layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
         _layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
-        _layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
         Controls.Add(_layout);
 
         _layout.Controls.Add(BuildHeader(), 0, 0);
@@ -152,6 +154,17 @@ public sealed class SurfaceJobCard : Panel
         _btnHeaderStop.Visible = false;
         _btnHeaderStop.Click += (_, _) => StopRequested?.Invoke(this);
         right.Controls.Add(_btnHeaderStop);
+
+        StyleSmallSecondary(_btnHeaderReport, "Report");
+        _btnHeaderReport.Visible = false;
+        _btnHeaderReport.Click += (_, _) => ReportRequested?.Invoke(this);
+        right.Controls.Add(_btnHeaderReport);
+
+        StyleSmallOutlineDanger(_btnHeaderRepair, "Oprava");
+        _btnHeaderRepair.Visible = false;
+        _btnHeaderRepair.Click += (_, _) => RepairRequested?.Invoke(this);
+        right.Controls.Add(_btnHeaderRepair);
+
         right.Controls.Add(_badge);
         header.Controls.Add(right, 1, 0);
 
@@ -232,7 +245,8 @@ public sealed class SurfaceJobCard : Panel
     private Control BuildMap()
     {
         _mapHost.Dock = DockStyle.Fill;
-        _mapHost.BackColor = SurfaceMapControl.Unknown;
+        _mapHost.BackColor = Theme.Border;
+        _mapHost.Padding = new Padding(1);
         _mapHost.Margin = new Padding(0, 4, 0, 4);
         _map.Dock = DockStyle.Fill;
         _map.MinimumSize = Size.Empty;
@@ -427,6 +441,30 @@ public sealed class SurfaceJobCard : Panel
         return row;
     }
 
+    private static void StyleSmallSecondary(Button button, string text)
+    {
+        button.Text = text;
+        button.AutoSize = true;
+        button.Height = 24;
+        button.FlatStyle = FlatStyle.Flat;
+        button.BackColor = Theme.Surface;
+        button.ForeColor = Theme.Text;
+        button.Font = new Font("Segoe UI Semibold", 8f);
+        button.Cursor = Cursors.Hand;
+        button.Padding = new Padding(8, 0, 8, 0);
+        button.Margin = new Padding(0, 0, 8, 0);
+        button.FlatAppearance.BorderColor = Theme.Border;
+        button.FlatAppearance.BorderSize = 1;
+        button.FlatAppearance.MouseOverBackColor = Theme.SurfaceAlt;
+    }
+
+    private static void StyleSmallOutlineDanger(Button button, string text)
+    {
+        StyleSmallSecondary(button, text);
+        button.ForeColor = Theme.Danger;
+        button.FlatAppearance.BorderColor = Theme.Danger;
+    }
+
     private static void StyleSmallDanger(Button button)
     {
         button.AutoSize = true;
@@ -493,8 +531,10 @@ public sealed class SurfaceJobCard : Panel
             _layout.RowStyles[3].Height = _expanded ? Scale(64) : 0;
             _layout.RowStyles[4].Height = _expanded ? Scale(28) : 0;
             _layout.RowStyles[5].Height = _expanded ? Scale(150) : 0;
+            _layout.RowStyles[6].Height = Scale(44);
             _layout.PerformLayout();
-            int height = _layout.PreferredSize.Height + Padding.Vertical;
+            var heights = _layout.GetRowHeights();
+            int height = heights.Sum() + Padding.Vertical + 8;
             if (height > 0 && Height != height) Height = height;
         }
         finally
@@ -507,6 +547,18 @@ public sealed class SurfaceJobCard : Panel
     {
         base.OnResize(e);
         if (!_recalculating && _layout.Width > 0) RecalculateHeight();
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        RecalculateHeight();
+    }
+
+    protected override void OnDpiChangedAfterParent(EventArgs e)
+    {
+        base.OnDpiChangedAfterParent(e);
+        RecalculateHeight();
     }
 
     public void RefreshFromJob()
@@ -561,11 +613,15 @@ public sealed class SurfaceJobCard : Panel
             ? "zostáva " + FormatDuration(s.Eta)
             : s.State == SurfaceJobState.Done ? "dokončené" : "";
 
+        bool hasData = Job.HasData;
+        bool repairEnabled = !Job.IsActive && s.BadSectors > 0 &&
+                             !Job.Disk.IsCurrentSystem && _appDisk != Job.Disk.Number;
         _btnStop.Enabled = s.State == SurfaceJobState.Running;
         _btnHeaderStop.Visible = s.State == SurfaceJobState.Running;
-        _btnReport.Enabled = Job.HasData;
-        _btnRepair.Enabled = !Job.IsActive && s.BadSectors > 0 &&
-                             !Job.Disk.IsCurrentSystem && _appDisk != Job.Disk.Number;
+        _btnReport.Enabled = hasData;
+        _btnRepair.Enabled = repairEnabled;
+        _btnHeaderReport.Visible = hasData;
+        _btnHeaderRepair.Visible = repairEnabled;
 
         if (s.LogVersion != _lastLogVersion)
         {

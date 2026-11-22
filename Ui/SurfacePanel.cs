@@ -500,6 +500,19 @@ public sealed class SurfacePanel : UserControl
         _empty.Visible = false;
         ResizeCards();
         job.Start();
+
+        // Prvý test otvoríme v detaile ako doteraz; druhý prepne na spoločný prehľad.
+        if (_cards.Count == 1)
+        {
+            _expanded = card;
+            card.SetExpanded(true);
+        }
+        else if (_expanded is not null)
+        {
+            _expanded.SetExpanded(false);
+            _expanded = null;
+        }
+
         _jobsHost.ScrollControlIntoView(card);
         await Task.CompletedTask;
     }

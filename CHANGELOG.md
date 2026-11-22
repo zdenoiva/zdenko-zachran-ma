@@ -1,5 +1,18 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.36] - 2026-11-22
+
+- **Karty testov v Povrchu**:
+  - výška karty sa počíta z obsahu a DPI (namerané 254 px kompaktná,
+    747 px rozbalená pri 125 %), takže spodné tlačidlá sú viditeľné
+  - mapa má 1 px rámik, aby bol celý pruh viditeľný aj pred skenovaním
+- **Akcie aj v hlavičke karty**: počas behu `Stop`, po skene `Report`,
+  pri vadných sektoroch `Oprava` — viditeľné bez scrollovania
+- **Prvý test sa otvorí v detaile** ako doteraz; pridaním druhého testu sa
+  prvý zbalí a zobrazí sa spoločný prehľad všetkých kariet
+- `Zastaviť všetko` v toolbare a `Stop` v hlavičke karty zostávajú.
+- Overené: `--surfacecard` (DPI 120, výšky 254/747), self-test, UI smoke.
+
 ## [2.35] - 2026-11-22
 
 - **Oprava kariet testov v Povrchu**:

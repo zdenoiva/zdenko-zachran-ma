@@ -237,16 +237,28 @@ internal static class Program
                 };
                 testLock = DiskLock.TryAcquire(99, "test", out _);
                 var job = new SurfaceJob(disk, 0, 100, testLock);
-                using var card = new SurfaceJobCard(job);
-                card.RefreshFromJob();
+                using var form = new Form
+                {
+                    Width = 1280,
+                    Height = 900,
+                    Opacity = 0,
+                    ShowInTaskbar = false,
+                    WindowState = FormWindowState.Minimized
+                };
+                using var card = new SurfaceJobCard(job) { Width = 1180 };
+                form.Controls.Add(card);
+                form.Show();
+                Application.DoEvents();
+                int dpi = card.DeviceDpi;
                 card.SetExpanded(false);
                 int compact = card.Height;
                 card.SetExpanded(true);
                 card.RefreshFromJob();
                 int expanded = card.Height;
                 card.SetExpanded(false);
+                form.Close();
                 File.WriteAllText(log,
-                    $"SURFACECARD OK compact={compact} expanded={expanded}");
+                    $"SURFACECARD OK dpi={dpi} compact={compact} expanded={expanded}");
                 return 0;
             }
             catch (Exception ex)
