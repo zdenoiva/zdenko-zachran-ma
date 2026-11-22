@@ -388,11 +388,12 @@ foreach ($a in $attrs) {
             reasons.Add("NVMe varovanie 0x" + info.CriticalWarning.ToString("X2"));
             replacement = true;
         }
+        // Windows HealthStatus je len orientačný verdikt Windows, nie atribút disku.
+        // Neovplyvňuje skóre ani odporúčanie výmeny — zostáva len textová poznámka.
         if (!string.IsNullOrWhiteSpace(info.Health) &&
             !info.Health.Equals("Healthy", StringComparison.OrdinalIgnoreCase))
         {
             reasons.Add("stav " + info.Health);
-            replacement = true;
         }
         if (!string.IsNullOrWhiteSpace(info.Status) &&
             !info.Status.Equals("OK", StringComparison.OrdinalIgnoreCase) &&
@@ -595,16 +596,14 @@ foreach ($a in $attrs) {
             score = Math.Min(score, (int)info.RemainingLife);
         }
 
-        if (info.ReallocatedSectors > 0) score -= 10;
-        if (info.PendingSectors > 0) score -= 25;
-        if (info.UncorrectableSectors > 0) score -= 25;
+        if (info.ReallocatedSectors > 0) score -= 25;
+        if (info.PendingSectors > 0) score -= 35;
+        if (info.UncorrectableSectors > 0) score -= 45;
         if (info.MediaErrors > 0) score -= 20;
         if (info.ReadErrorsUncorrected > 0) score -= 10;
         if (info.WriteErrorsUncorrected > 0) score -= 10;
         if (info.CrcErrors > 0) score -= 3;
         if (info.CriticalWarning != 0) score -= 30;
-        if (!string.IsNullOrWhiteSpace(info.Health) &&
-            !info.Health.Equals("Healthy", StringComparison.OrdinalIgnoreCase)) score -= 30;
         if (info.PredictFailure) score -= 40;
         if (info.PowerOnHours >= 30_000) score -= 20;
         else if (info.PowerOnHours >= 15_000) score -= 10;

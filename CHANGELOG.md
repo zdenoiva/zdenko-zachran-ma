@@ -1,5 +1,27 @@
 # Zdenko, zachráň ma! — changelog
 
+## [2.38] - 2026-11-22
+
+- **Windows HealthStatus už neovplyvňuje ani odporúčanie výmeny**:
+  - zostáva len ako textová poznámka v nálezoch (napr. „stav Warning“)
+  - skóre ani „Odporúčaná výmena disku“ sa podľa neho neriadi
+  - dôvod: `MSFT_PhysicalDisk.HealthStatus` je verdikt Windows Storage,
+    nie atribút disku; pri USB mostíkoch býva generický
+- `OperationalStatus` (OK/Offline) zostáva ako prevádzkový stav.
+
+## [2.37] - 2026-11-22
+
+- **Nové váhy zdravia disku**:
+  - presunuté sektory (5): **−25** (predtým −10)
+  - nestabilné sektory (197): **−35** (predtým −25)
+  - neopraviteľné sektory (198): **−45** (predtým −25)
+- **Windows Health (Healthy/Warning/Unhealthy) už neovplyvňuje skóre** —
+  zostáva len ako textová informácia. Dôvod: nie je to atribút disku.
+- Príklad: disk s 2 presunutými sektormi a 1 CRC má teraz
+  `100 − 25 − 3 = 72 %` (Pozor), predtým 87 % (Dobrý).
+- Odporúčanie výmeny sa nemení: akýkoľvek presunutý/nestabilný/neopraviteľný
+  sektor alebo chyba média ho stále spustí.
+
 ## [2.36] - 2026-11-22
 
 - **Karty testov v Povrchu**:
